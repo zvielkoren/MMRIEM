@@ -5,8 +5,6 @@ import {
   Heebo_700Bold,
 } from "@expo-google-fonts/heebo";
 import { useEffect, useState } from "react";
-import { SplashScreen } from "expo-router";
-import { Calendar } from "react-native-calendars";
 import { ThemedText } from "@/components/ThemedText";
 import { useAuth } from "@/contexts/AuthContext";
 import { collection, query, getDocs, where } from "firebase/firestore";
@@ -15,9 +13,7 @@ import { db } from "@/config/firebase";
 export default function CalendarScreen() {
   const [events, setEvents] = useState<any[]>([]);
   const { user } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [selectedDate] = useState(new Date().toISOString().split("T")[0]);
 
   const [fontsLoaded, fontError] = useFonts({
     "Heebo-Regular": Heebo_400Regular,
@@ -39,16 +35,6 @@ export default function CalendarScreen() {
     setEvents(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
   };
 
-  const markedDates = events.reduce(
-    (acc, event) => ({
-      ...acc,
-      [event.startDate.split("T")[0]]: { marked: true, dotColor: "#0066cc" },
-    }),
-    {
-      [selectedDate]: { selected: true, selectedColor: "#0066cc" },
-    }
-  );
-
   if (!fontsLoaded && !fontError) {
     return null;
   }
@@ -60,21 +46,6 @@ export default function CalendarScreen() {
         <ThemedText style={styles.subtitle}>
           תכנון ומעקב אחר פעילויות
         </ThemedText>
-      </View>
-
-      <View style={styles.calendarContainer}>
-        <Calendar
-          style={styles.calendar}
-          markedDates={markedDates}
-          onDayPress={(day) => setSelectedDate(day.dateString)}
-          theme={{
-            textDayFontFamily: "Heebo-Regular",
-            textMonthFontFamily: "Heebo-Bold",
-            textDayHeaderFontFamily: "Heebo-Regular",
-            todayTextColor: "#0066cc",
-            selectedDayBackgroundColor: "#0066cc",
-          }}
-        />
       </View>
 
       <View style={styles.eventsContainer}>
@@ -115,19 +86,6 @@ const styles = StyleSheet.create({
     textAlign: "right",
     color: "#666666",
     marginTop: 4,
-  },
-  calendarContainer: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  calendar: {
-    borderRadius: 12,
   },
   eventsContainer: {
     marginTop: 24,
