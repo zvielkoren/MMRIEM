@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "MMRIEM",
-    "slug": "MMRIEM",
+    "slug": "mmriem-bagolan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -36,6 +36,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "d653c6d2-23cc-4a7c-94e7-f2f408aea9c1"
+      }
+    },
+    "owner": "zvielkoren"
   }
 }
