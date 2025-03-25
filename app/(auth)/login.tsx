@@ -1,199 +1,121 @@
-import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
-import { Link } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/firebase.config';
-import { LogIn, Mail, Lock } from 'lucide-react-native';
+import React, { useState, useEffect } from "react";
+import { View, StyleSheet, ActivityIndicator } from "react-native";
+import { ThemedText } from "@/components/ThemedText";
+import { Button, TextInput } from "react-native";
+import { auth } from "@/config/firebase";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
+import { useRouter } from "expo-router";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.replace("/(tabs)");
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const validateInputs = () => {
+    if (!email || !password) {
+      setError("Please fill in all fields");
+      return false;
+    }
+    if (!email.includes("@")) {
+      setError("Please enter a valid email");
+      return false;
+    }
+    return true;
+  };
 
   const handleLogin = async () => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (err) {
-      setError('שגיאה בהתחברות. אנא בדקו את הפרטים ונסו שוב.');
+      setError("");
+      if (!validateInputs()) return;
+
+      setIsLoading(true);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
+      );
+      if (userCredential.user) {
+        router.replace("/(tabs)/index");
+      }
+    } catch (err: any) {
+      switch (err.code) {
+        case "auth/invalid-email":
+          setError("Invalid email format");
+          break;
+        case "auth/user-disabled":
+          setError("This account has been disabled");
+          break;
+        case "auth/user-not-found":
+          setError("No account found with this email");
+          break;
+        case "auth/wrong-password":
+          setError("Incorrect password");
+          break;
+        default:
+          setError("Login failed. Please try again");
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.container}
-      >
-        <ScrollView contentContainerStyle={styles.scrollView}>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=800' }}
-            style={styles.backgroundImage}
-          />
-          <View style={styles.formContainer}>
-            <View style={styles.header}>
-              <LogIn size={32} color="#0066cc" />
-              <Text style={styles.title}>ברוכים הבאים</Text>
-              <Text style={styles.subtitle}>התחברו כדי להמשיך</Text>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Mail size={20} color="#666666" />
-              <TextInput
-                style={styles.input}
-                placeholder="אימייל"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                textContentType="emailAddress"
-                autoComplete="email"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Lock size={20} color="#666666" />
-              <TextInput
-                style={styles.input}
-                placeholder="סיסמה"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                textContentType="password"
-                autoComplete="password"
-              />
-            </View>
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <TouchableOpacity 
-              style={styles.button} 
-              onPress={handleLogin}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.buttonText}>התחברות</Text>
-            </TouchableOpacity>
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>עדיין אין לך חשבון? </Text>
-              <Link href="/register" style={styles.link}>
-                הירשם עכשיו
-              </Link>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <View style={styles.container}>
+      <ThemedText type="title">Login</ThemedText>
+      {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        editable={!isLoading}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        editable={!isLoading}
+      />
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#0000ff" />
+      ) : (
+        <Button title="Login" onPress={handleLogin} disabled={isLoading} />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
   container: {
     flex: 1,
-  },
-  scrollView: {
-    flexGrow: 1,
-  },
-  backgroundImage: {
-    width: '100%',
-    height: Platform.OS === 'web' ? 300 : 250,
-    resizeMode: 'cover',
-  },
-  formContainer: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderTopRightRadius: 30,
-    borderTopLeftRadius: 30,
-    marginTop: -30,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -3,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-    marginTop: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Heebo-Bold',
-    color: '#333333',
-    marginTop: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666666',
-    marginTop: 8,
-    fontFamily: 'Heebo-Regular',
-  },
-  inputContainer: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    height: 56,
+    padding: 20,
+    justifyContent: "center",
   },
   input: {
-    flex: 1,
-    height: '100%',
-    marginRight: 12,
-    fontFamily: 'Heebo-Regular',
-    textAlign: 'right',
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#0066cc',
-    borderRadius: 12,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 16,
-    shadowColor: '#0066cc',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontFamily: 'Heebo-Bold',
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 10,
+    marginVertical: 10,
+    borderRadius: 5,
   },
   error: {
-    color: '#dc2626',
-    textAlign: 'right',
-    marginBottom: 16,
-    fontFamily: 'Heebo-Regular',
-    fontSize: 14,
-  },
-  footer: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'center',
-    marginTop: 24,
-    paddingVertical: 16,
-  },
-  footerText: {
-    color: '#666666',
-    fontFamily: 'Heebo-Regular',
-    fontSize: 16,
-  },
-  link: {
-    color: '#0066cc',
-    fontFamily: 'Heebo-Bold',
-    fontSize: 16,
+    color: "red",
+    marginBottom: 10,
   },
 });

@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 import { getMessaging, isSupported } from "firebase/messaging";
@@ -20,6 +20,16 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
+
+// Enable offline persistence
+try {
+  enableIndexedDbPersistence(db);
+} catch (err) {
+  console.warn("Persistence initialization failed:", err);
+}
+
+// Add rules version check
+export const FIRESTORE_RULES_VERSION = "1";
 
 // Initialize messaging only if supported (web)
 export const initializeMessaging = async () => {
