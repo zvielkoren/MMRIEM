@@ -1,6 +1,7 @@
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
+import { View, ActivityIndicator } from "react-native";
 
 export default function RootLayout() {
   const { loading, user } = useAuth();
@@ -9,19 +10,22 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!loading) {
-      // Force redirect to login if not authenticated
+      // Force immediate redirect based on auth state
       if (!user) {
         router.replace("/(auth)/login");
-        return;
-      }
-
-      // Redirect authenticated users from auth pages to main app
-      const inAuthGroup = segments[0] === "(auth)";
-      if (user && inAuthGroup) {
+      } else if (segments[0] === "(auth)") {
         router.replace("/profile");
       }
     }
-  }, [user, loading]);
+  }, [user, loading, segments]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#0066cc" />
+      </View>
+    );
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

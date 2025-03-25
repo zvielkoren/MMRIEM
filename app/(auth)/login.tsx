@@ -14,13 +14,8 @@ export default function LoginScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        router.replace("/(tabs)");
-      }
-    });
-
-    return () => unsubscribe();
+    // Remove the onAuthStateChanged listener from here
+    // It's now handled in the root layout
   }, []);
 
   const validateInputs = () => {
@@ -41,14 +36,8 @@ export default function LoginScreen() {
       if (!validateInputs()) return;
 
       setIsLoading(true);
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password
-      );
-      if (userCredential.user) {
-        router.replace("/profile");
-      }
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      router.replace("/profile");
     } catch (err: any) {
       switch (err.code) {
         case "auth/invalid-email":
