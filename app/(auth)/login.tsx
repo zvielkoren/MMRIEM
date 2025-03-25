@@ -37,7 +37,11 @@ export default function LoginScreen() {
 
       setIsLoading(true);
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      router.replace("/profile");
+      // Force navigation and reset stack
+      router.replace({
+        pathname: "/(tabs)",
+        params: { refresh: Date.now() },
+      });
     } catch (err: any) {
       switch (err.code) {
         case "auth/invalid-email":
