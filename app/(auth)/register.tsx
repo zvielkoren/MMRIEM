@@ -16,7 +16,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase.config";
 import { UserPlus, Mail, Lock, User } from "lucide-react-native";
-import { ROLE_LABELS } from "@/types/roles";
+import { ROLE_LABELS, UserRole } from "@/types/roles";
 import { Picker } from "@react-native-picker/picker";
 
 export default function RegisterScreen() {
