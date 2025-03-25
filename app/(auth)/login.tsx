@@ -47,7 +47,7 @@ export default function LoginScreen() {
         password
       );
       if (userCredential.user) {
-        router.replace("/(tabs)/index");
+        router.replace("/profile");
       }
     } catch (err: any) {
       switch (err.code) {

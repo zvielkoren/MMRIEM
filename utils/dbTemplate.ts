@@ -147,6 +147,54 @@ service cloud.firestore {
       console.log("Created default admin user");
     }
 
+    // Initialize Users Collection with Sample Data
+    const usersCollection = collection(db, DB_COLLECTIONS.USERS);
+    const sampleUsers: DBUser[] = [
+      {
+        id: "admin",
+        email: "admin@mmriem.com",
+        name: "מנהל ראשי",
+        role: "admin",
+        createdAt: new Date().toISOString(),
+        settings: {
+          notifications: true,
+          language: "he",
+        },
+      },
+      {
+        id: "instructor1",
+        email: "instructor@mmriem.com",
+        name: "מדריך ראשי",
+        role: "instructor",
+        createdAt: new Date().toISOString(),
+        settings: {
+          notifications: true,
+          language: "he",
+        },
+      },
+      {
+        id: "user1",
+        email: "user@mmriem.com",
+        name: "משתמש לדוגמה",
+        role: "user",
+        createdAt: new Date().toISOString(),
+        settings: {
+          notifications: true,
+          language: "he",
+        },
+      },
+    ];
+
+    // Create users if they don't exist
+    for (const user of sampleUsers) {
+      const userRef = doc(db, DB_COLLECTIONS.USERS, user.id);
+      const userDoc = await getDoc(userRef);
+      if (!userDoc.exists()) {
+        await setDoc(userRef, user);
+        console.log(`Created ${user.role} user: ${user.email}`);
+      }
+    }
+
     // Create initial settings
     await setDoc(doc(db, DB_COLLECTIONS.SETTINGS, "general"), {
       systemName: "ממריאים מגולן",
@@ -162,6 +210,28 @@ service cloud.firestore {
     console.log("Database initialized successfully");
   } catch (error) {
     console.error("Error initializing database:", error);
+    throw error;
+  }
+}
+
+// Add utility function to recreate users table
+export async function resetUsersTable() {
+  try {
+    const usersSnap = await getDocs(collection(db, DB_COLLECTIONS.USERS));
+    const batch = db.batch();
+
+    // Delete existing users
+    usersSnap.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+
+    // Reinitialize database
+    await initializeDatabase();
+    console.log("Users table reset successfully");
+  } catch (error) {
+    console.error("Error resetting users table:", error);
     throw error;
   }
 }

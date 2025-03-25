@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase.config";
 import { UserPlus, Mail, Lock, User } from "lucide-react-native";
+import { ROLE_LABELS } from "@/types/roles";
+import { Picker } from "@react-native-picker/picker";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
@@ -108,7 +110,7 @@ export default function RegisterScreen() {
             <View style={styles.inputContainer}>
               <Picker
                 selectedValue={role}
-                onValueChange={(value) => setRole(value)}
+                onValueChange={(value: any) => setRole(value)}
                 style={styles.input}
               >
                 {Object.entries(ROLE_LABELS).map(([key, label]) => (
