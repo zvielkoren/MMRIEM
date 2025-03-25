@@ -1,0 +1,22 @@
+{
+  "project_info": {
+    "project_number": "544706941106",
+    "project_id": "mamrimegolan",
+    "storage_bucket": "mamrimegolan.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:544706941106:android:your_android_client_id",
+        "android_client_info": {
+          "package_name": "com.zvielkoren.mamrimegolan"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyCn3WB_e2oOFmJGUDITBfLd-4_Pg9H6eQs"
+        }
+      ]
+    }
+  ]
+}
