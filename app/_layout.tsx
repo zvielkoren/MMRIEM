@@ -9,14 +9,19 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!loading) {
-      const inAuthGroup = segments[0] === "(auth)";
-      if (!user && !inAuthGroup) {
+      // Force redirect to login if not authenticated
+      if (!user) {
         router.replace("/(auth)/login");
-      } else if (user && inAuthGroup) {
-        router.replace("/profile"); // Changed from /(tabs) to /(tabs)/index
+        return;
+      }
+
+      // Redirect authenticated users from auth pages to main app
+      const inAuthGroup = segments[0] === "(auth)";
+      if (user && inAuthGroup) {
+        router.replace("/profile");
       }
     }
-  }, [user, loading, segments]);
+  }, [user, loading]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
