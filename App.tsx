@@ -6,6 +6,7 @@ import {
   initializeDatabase,
   validateDatabaseStructure,
 } from "./utils/dbTemplate";
+import { Updates } from 'expo';
 
 let hasInitialized = false;
 
@@ -31,6 +32,22 @@ export default function App() {
     }
 
     checkAndSetupDatabase();
+  }, []);
+
+  useEffect(() => {
+    async function checkUpdate() {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (error) {
+        console.log('Error checking for updates:', error);
+      }
+    }
+    
+    checkUpdate();
   }, []);
 
   if (isInitializing) {
