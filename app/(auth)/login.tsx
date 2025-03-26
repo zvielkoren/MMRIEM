@@ -87,6 +87,10 @@ export default function LoginScreen() {
     }
   };
 
+  const handleRegister = () => {
+    router.push("/(auth)/register");
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -142,7 +146,7 @@ export default function LoginScreen() {
 
       <View style={styles.footer}>
         <ThemedText style={styles.footerText}>עדיין אין לך חשבון? </ThemedText>
-        <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
+        <TouchableOpacity onPress={handleRegister}>
           <ThemedText style={styles.registerLink}>הירשם עכשיו</ThemedText>
         </TouchableOpacity>
       </View>

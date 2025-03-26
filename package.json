@@ -12,7 +12,9 @@
     "build:ios": "eas build --platform ios",
     "build:ios:development": "eas build --platform ios --profile development",
     "build:ios:preview": "eas build --platform ios --profile preview",
-    "submit:ios": "eas submit -p ios"
+    "submit:ios": "eas submit -p ios",
+    "start": "expo start",
+    "start:dev": "expo start --dev-client"
   },
   "dependencies": {
     "@expo-google-fonts/heebo": "^0.2.3",
