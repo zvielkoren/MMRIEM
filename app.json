@@ -13,7 +13,14 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.zvielkoren.mamrimegolan"
+      "bundleIdentifier": "com.zvielkoren.mamrimegolan",
+      "buildNumber": "1.0.2",
+      "infoPlist": {
+        "NSCameraUsageDescription": "צריך גישה למצלמה בשביל להעלות תמונות",
+        "NSPhotoLibraryUsageDescription": "צריך גישה לגלריה בשביל להעלות תמונות",
+        "NSUserTrackingUsageDescription": "מידע זה משמש לשיפור חווית המשתמש באפליקציה",
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "adaptiveIcon": {
