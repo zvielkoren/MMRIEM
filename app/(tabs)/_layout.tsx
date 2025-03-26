@@ -24,10 +24,10 @@ export default function TabLayout() {
         tabBarActiveTintColor: isDark ? "#3b82f6" : "#0066cc",
         tabBarInactiveTintColor: isDark ? "#9ca3af" : "#666666",
       }}
-      initialRouteName="index"
+      initialRouteName="calendar"
     >
       <Tabs.Screen
-        name="index"
+        name="calendar"
         options={{
           title: "יומן",
           tabBarIcon: ({ color, size }) => (
