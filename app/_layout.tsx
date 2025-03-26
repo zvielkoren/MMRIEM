@@ -1,18 +1,26 @@
-import { Slot } from "expo-router";
-import { Redirect, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { SplashScreen } from "@/components/SplashScreen";
+import { StatusBar } from "expo-status-bar";
 
 export default function RootLayout() {
-  const { loading, user } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return <SplashScreen />;
   }
 
-  if (!user) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
-  return <Slot />;
+  return (
+    <>
+      <StatusBar style="auto" />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+    </>
+  );
 }

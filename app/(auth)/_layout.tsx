@@ -1,21 +1,19 @@
 import { Stack } from "expo-router";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { Redirect } from "expo-router";
 
 export default function AuthLayout() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
-  if (loading) return null;
-
+  // Redirect to calendar if already logged in
   if (user) {
-    return <Redirect href="/profile" />;
+    return <Redirect href="/(tabs)/calendar" />;
   }
 
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: "#ffffff" },
       }}
     >
       <Stack.Screen name="login" />

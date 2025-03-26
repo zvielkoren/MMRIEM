@@ -28,10 +28,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [userData, setUserData] = useState<DBUser | null>(null);
 
   useEffect(() => {
+    // Set initial loading state
+    setLoading(true);
+
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      setLoading(true);
-      if (user) {
-        try {
+      try {
+        if (user) {
           // Get user data from Firestore
           const userDoc = await getDoc(doc(db, "users", user.uid));
 
@@ -52,20 +54,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setUserRole(null);
             setUserData(null);
           }
-        } catch (error) {
-          console.error("Error loading user data:", error);
-          // On error, keep user signed out
-          await auth.signOut();
+        } else {
           setUser(null);
           setUserRole(null);
           setUserData(null);
         }
-      } else {
+      } catch (error) {
+        console.error("Error in auth state change:", error);
         setUser(null);
         setUserRole(null);
         setUserData(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
