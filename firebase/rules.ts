@@ -41,9 +41,9 @@ export function checkPermissions(
 
     case "reports":
       return {
-        read: userRole === "admin" || userRole === "instructor",
-        write: userRole === "admin" || userRole === "instructor",
-        update: userRole === "admin" || userRole === "instructor",
+        read: userRole === "admin",
+        write: userRole === "admin",
+        update: userRole === "admin",
         delete: userRole === "admin",
       };
 
@@ -92,10 +92,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
-    // Reports collection rules
+    // Reports collection rules - only admin access
     match /reports/{reportId} {
       allow read, write: if request.auth != null && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'instructor']);
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     // Sessions collection rules

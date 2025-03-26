@@ -50,7 +50,7 @@ export default function TabLayout() {
         }}
       />
 
-      {(userRole === "admin" || userRole === "instructor") && (
+      {userRole === "admin" && (
         <Tabs.Screen
           name="reports"
           options={{
