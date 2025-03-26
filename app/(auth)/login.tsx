@@ -11,7 +11,11 @@ import {
 import { ThemedText } from "@/components/ThemedText";
 import { TextInput } from "react-native";
 import { auth } from "@/config/firebase";
-import { signInWithEmailAndPassword, PhoneAuthProvider, signInWithCredential } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  PhoneAuthProvider,
+  signInWithCredential,
+} from "firebase/auth";
 import { useRouter } from "expo-router";
 import { db } from "@/config/firebase";
 import { Mail, Lock, Phone } from "lucide-react-native";
@@ -94,15 +98,16 @@ export default function LoginScreen() {
 
   const handlePhoneAuth = async () => {
     try {
-      const formattedPhone = phoneNumber.startsWith("+") ? 
-        phoneNumber : `+972${phoneNumber.replace(/^0/, '')}`;
-      
+      const formattedPhone = phoneNumber.startsWith("+")
+        ? phoneNumber
+        : `+972${phoneNumber.replace(/^0/, "")}`;
+
       const provider = new PhoneAuthProvider(auth);
       const verificationId = await provider.verifyPhoneNumber(
         formattedPhone,
         window.recaptchaVerifier
       );
-      
+
       setVerificationId(verificationId);
       setIsVerifying(true);
       Alert.alert("קוד אימות נשלח", "נא להזין את הקוד שקיבלת בהודעת SMS");
@@ -146,19 +151,19 @@ export default function LoginScreen() {
         {error && <ThemedText style={styles.error}>{error}</ThemedText>}
 
         <View style={styles.loginMethodToggle}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
               styles.methodButton,
-              loginMethod === "email" && styles.methodButtonActive
+              loginMethod === "email" && styles.methodButtonActive,
             ]}
             onPress={() => setLoginMethod("email")}
           >
             <ThemedText>התחברות עם אימייל</ThemedText>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
               styles.methodButton,
-              loginMethod === "phone" && styles.methodButtonActive
+              loginMethod === "phone" && styles.methodButtonActive,
             ]}
             onPress={() => setLoginMethod("phone")}
           >
@@ -244,7 +249,7 @@ export default function LoginScreen() {
         )}
       </View>
 
-      <View style={styles.footer}></View>
+      <View style={styles.footer}>
         <ThemedText style={styles.footerText}>עדיין אין לך חשבון? </ThemedText>
         <TouchableOpacity onPress={handleRegister}>
           <ThemedText style={styles.registerLink}>הירשם עכשיו</ThemedText>
