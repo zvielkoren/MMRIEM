@@ -32,15 +32,15 @@ export default function RegisterScreen() {
         password
       );
 
-      // Create user document with fixed role
       await setDoc(doc(db, "users", userCredential.user.uid), {
+        id: userCredential.user.uid,
         email,
         name,
-        role: "user", // Set default role
+        role: "user",
         createdAt: new Date().toISOString(),
       });
 
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/profile");
     } catch (err) {
       setError("שגיאה בהרשמה. אנא בדקו את הפרטים ונסו שוב.");
     }

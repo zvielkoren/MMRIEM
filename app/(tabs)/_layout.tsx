@@ -29,7 +29,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: isDark ? "#3b82f6" : "#0066cc",
         tabBarInactiveTintColor: isDark ? "#9ca3af" : "#666666",
       }}
-      initialRouteName="calendar"
+      initialRouteName="profile"
     >
       <Tabs.Screen
         name="calendar"
