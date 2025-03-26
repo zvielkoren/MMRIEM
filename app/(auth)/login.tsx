@@ -64,7 +64,7 @@ export default function LoginScreen() {
         password
       );
       await createSession(userCredential.user.uid);
-      router.replace({ pathname: "/(tabs)", params: { refresh: Date.now() } });
+      router.replace("/(tabs)/calendar");
     } catch (err: any) {
       switch (err.code) {
         case "auth/invalid-email":

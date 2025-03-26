@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Tabs, Redirect } from "expo-router";
 import {
   Calendar,
   ClipboardList,
@@ -10,8 +10,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
 export default function TabLayout() {
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const { isDark } = useTheme();
+
+  // If not logged in, redirect to login
+  if (!user) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <Tabs
