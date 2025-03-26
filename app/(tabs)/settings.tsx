@@ -27,6 +27,7 @@ import {
 import { db } from "@/config/firebase";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getThemedStyles } from "@/utils/theme";
+import { signOut } from "firebase/auth";
 
 export default function SettingsScreen() {
   const { user, userRole, userData } = useAuth();
@@ -37,7 +38,7 @@ export default function SettingsScreen() {
   );
   const [darkMode, setDarkMode] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       "יציאה מהמערכת",
       "האם אתה בטוח שברצונך להתנתק?",
@@ -46,16 +47,14 @@ export default function SettingsScreen() {
         {
           text: "יציאה",
           style: "destructive",
-          onPress: () => {
-            auth
-              .signOut()
-              .then(() => {
-                router.replace("/(auth)/login");
-              })
-              .catch((error) => {
-                console.error("Error during logout:", error);
-                Alert.alert("שגיאה", "אירעה שגיאה בעת ההתנתקות");
-              });
+          onPress: async () => {
+            try {
+              await signOut(auth);
+              router.replace("/(auth)/login");
+            } catch (error) {
+              console.error("Error during logout:", error);
+              Alert.alert("שגיאה", "אירעה שגיאה בעת ההתנתקות");
+            }
           },
         },
       ],

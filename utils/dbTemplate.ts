@@ -6,6 +6,7 @@ import {
   query,
   where,
   getDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/config/firebase";
@@ -27,9 +28,19 @@ export const DB_COLLECTIONS = {
   CALENDARS: "calendars",
   SETTINGS: "settings",
   SESSIONS: "sessions",
+  PROFILE_REQUESTS: "profileEditRequests",
 } as const;
 
 const DB_VERSION = "1.0";
+
+// Add groups definition
+export const USER_GROUPS = {
+  A: "קבוצה א",
+  B: "קבוצה ב",
+  ALL: "כולם",
+} as const;
+
+export type UserGroup = keyof typeof USER_GROUPS;
 
 // Template Data Structures
 export interface DBUser {
@@ -44,6 +55,8 @@ export interface DBUser {
     notifications: boolean;
     language: "he" | "en";
   };
+  group?: UserGroup;
+  notificationToken?: string;
 }
 
 interface DBEvent {
@@ -90,6 +103,23 @@ interface DBSession {
   createdAt: string;
   expiresAt: string;
   isValid: boolean;
+}
+
+// Add ProfileEditRequest interface
+interface DBProfileEditRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  requestedChanges: {
+    name?: string;
+    phoneNumber?: string;
+  };
+  status: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
 }
 
 // Add user permissions
@@ -243,6 +273,24 @@ export async function initializeDatabase() {
       },
     });
 
+    // Initialize profile edit requests collection
+    await setDoc(doc(db, DB_COLLECTIONS.SETTINGS, "profileRequests"), {
+      requireAdminApproval: true,
+      autoRejectOnRoleChange: true,
+      notifications: {
+        sendEmailOnRequest: true,
+        sendEmailOnApproval: true,
+      },
+    });
+
+    // Add default groups to admin settings
+    await setDoc(doc(db, DB_COLLECTIONS.SETTINGS, "groups"), {
+      enabled: true,
+      requireApproval: false,
+      groups: USER_GROUPS,
+      defaultGroup: "ALL",
+    });
+
     console.log("Database initialized successfully");
   } catch (error) {
     console.error("Error initializing database:", error);
@@ -292,4 +340,19 @@ export async function validateDatabaseStructure() {
     isValid: errors.length === 0,
     errors,
   };
+}
+
+// Add utility function to update user group
+export async function updateUserGroup(userId: string, group: UserGroup) {
+  try {
+    const userRef = doc(db, DB_COLLECTIONS.USERS, userId);
+    await updateDoc(userRef, {
+      group,
+      updatedAt: new Date().toISOString(),
+    });
+    return true;
+  } catch (error) {
+    console.error("Error updating user group:", error);
+    return false;
+  }
 }

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "../config/firebase";
 import { User as FirebaseUser } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { UserRole } from "@/types/roles";
 import { DBUser } from "@/utils/dbTemplate";
 
@@ -29,21 +29,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      setUser(user);
-      setLoading(true); // Force loading state
+      setLoading(true);
       if (user) {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        const userData = userDoc.data() as DBUser;
-        setUserRole(userData?.role || "user");
-        setUserData(userData);
+        try {
+          // Get user data from Firestore
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as DBUser;
+            setUserRole(userData?.role || "user");
+            setUserData(userData);
+            setUser(user);
+
+            // Update last login
+            await updateDoc(doc(db, "users", user.uid), {
+              lastLogin: new Date().toISOString(),
+            });
+          } else {
+            // User document doesn't exist - sign out
+            await auth.signOut();
+            setUser(null);
+            setUserRole(null);
+            setUserData(null);
+          }
+        } catch (error) {
+          console.error("Error loading user data:", error);
+          // On error, keep user signed out
+          await auth.signOut();
+          setUser(null);
+          setUserRole(null);
+          setUserData(null);
+        }
       } else {
+        setUser(null);
         setUserRole(null);
         setUserData(null);
       }
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => unsubscribe();
   }, []);
 
   return (

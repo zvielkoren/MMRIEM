@@ -15,6 +15,7 @@ import {
   updateDoc,
   doc,
   where,
+  addDoc,
 } from "firebase/firestore";
 import { db } from "@/config/firebase";
 import { useState, useEffect } from "react";
@@ -39,6 +40,8 @@ function UserDetailsModal({
   onClose,
   onUpdateRole,
 }: UserDetailsModalProps) {
+  const availableRoles = Object.entries(ROLE_LABELS);
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.modalContainer}>
@@ -57,25 +60,46 @@ function UserDetailsModal({
 
           <View style={styles.detailRow}>
             <ThemedText style={styles.detailLabel}>תפקיד:</ThemedText>
-            <View style={styles.roleButtons}>
-              {Object.entries(ROLE_LABELS).map(([role, label]) => (
-                <ThemedButton
+            <View style={styles.roleButtonsContainer}>
+              {availableRoles.map(([role, label]) => (
+                <TouchableOpacity
                   key={role}
-                  title={label}
-                  variant={user.role === role ? "primary" : "secondary"}
-                  style={styles.roleButton}
-                  onPress={() => onUpdateRole(user.id, role as UserRole)}
-                />
+                  style={[
+                    styles.roleButton,
+                    user.role === role && styles.roleButtonSelected,
+                  ]}
+                  onPress={() => {
+                    Alert.alert(
+                      "שינוי תפקיד",
+                      `האם אתה בטוח שברצונך לשנות את תפקיד המשתמש ל${label}?`,
+                      [
+                        { text: "ביטול", style: "cancel" },
+                        {
+                          text: "אישור",
+                          style: "destructive",
+                          onPress: () =>
+                            onUpdateRole(user.id, role as UserRole),
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <ThemedText
+                    style={[
+                      styles.roleButtonText,
+                      user.role === role && styles.roleButtonTextSelected,
+                    ]}
+                  >
+                    {label}
+                  </ThemedText>
+                </TouchableOpacity>
               ))}
             </View>
           </View>
 
-          <ThemedButton
-            title="סגור"
-            variant="secondary"
-            style={styles.closeButton}
-            onPress={onClose}
-          />
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <ThemedText style={styles.closeButtonText}>סגור</ThemedText>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -194,7 +218,7 @@ function ProfileRequestsModal({
 
 export default function StaffScreen() {
   const [users, setUsers] = useState<DBUser[]>([]);
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const [selectedUser, setSelectedUser] = useState<DBUser | null>(null);
   const { isDark } = useTheme();
   const themed = getThemedStyles(isDark);
@@ -205,11 +229,17 @@ export default function StaffScreen() {
   }, []);
 
   const loadUsers = async () => {
-    const usersSnap = await getDocs(query(collection(db, "users")));
-    const userData = usersSnap.docs.map(
-      (doc) => ({ ...doc.data(), id: doc.id } as DBUser)
-    );
-    setUsers(userData);
+    try {
+      const usersSnap = await getDocs(query(collection(db, "users")));
+      const userData = usersSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as DBUser[];
+      setUsers(userData);
+    } catch (error) {
+      console.error("Error loading users:", error);
+      Alert.alert("שגיאה", "אירעה שגיאה בטעינת רשימת המשתמשים");
+    }
   };
 
   const handleUpdateRole = async (userId: string, newRole: UserRole) => {
@@ -219,22 +249,32 @@ export default function StaffScreen() {
       await updateDoc(userRef, {
         role: newRole,
         updatedAt: new Date().toISOString(),
+        lastModifiedBy: user?.uid,
       });
 
-      // Close modal first
-      setSelectedUser(null);
+      // Log role change
+      await addDoc(collection(db, "roleChanges"), {
+        userId,
+        oldRole: selectedUser?.role,
+        newRole,
+        changedBy: user?.uid,
+        timestamp: new Date().toISOString(),
+      });
 
-      // Then refresh the list
+      // Refresh users list
       await loadUsers();
 
+      // Close modal and show success message
+      setSelectedUser(null);
       Alert.alert("הצלחה", "תפקיד המשתמש עודכן בהצלחה");
     } catch (error) {
-      console.error("Error updating user role:", error);
-      Alert.alert("שגיאה", "אירעה שגיאה בעדכון תפקיד המשתמש");
+      console.error("Error updating role:", error);
+      Alert.alert("שגיאה", "אירעה שגיאה בעדכון התפקיד");
     }
   };
 
-  const RoleLabel = ({ role }: { role: string }) => (
+  // Update RoleLabel component to use ROLE_LABELS
+  const RoleLabel = ({ role }: { role: UserRole }) => (
     <View
       style={[
         styles.roleTag,
@@ -248,7 +288,7 @@ export default function StaffScreen() {
         },
       ]}
     >
-      <ThemedText style={styles.roleText}>{role}</ThemedText>
+      <ThemedText style={styles.roleText}>{ROLE_LABELS[role]}</ThemedText>
     </View>
   );
 
@@ -397,29 +437,31 @@ const styles = StyleSheet.create({
     textAlign: "right",
     fontFamily: "Heebo-Bold",
   },
-  roleButtons: {
+  roleButtonsContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    gap: 8,
     marginTop: 8,
   },
   roleButton: {
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-    flex: 1,
-    marginHorizontal: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#f3f4f6",
+    minWidth: 80,
+    alignItems: "center",
   },
   roleButtonSelected: {
     backgroundColor: "#0066cc",
-    borderColor: "#0066cc",
   },
   roleButtonText: {
-    textAlign: "center",
-    color: "#666",
+    color: "#666666",
+    fontSize: 14,
+    fontFamily: "Heebo-Bold",
   },
   roleButtonTextSelected: {
-    color: "#fff",
+    color: "#ffffff",
   },
   closeButton: {
     backgroundColor: "#f3f4f6",

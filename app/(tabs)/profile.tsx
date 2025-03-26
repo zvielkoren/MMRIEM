@@ -30,6 +30,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "@/config/firebase";
+import { USER_GROUPS, UserGroup } from "@/utils/dbTemplate";
 
 interface ProfileEditRequest {
   userId: string;
@@ -43,8 +44,43 @@ interface ProfileEditRequest {
   updatedAt: string;
 }
 
+function GroupSelector({
+  currentGroup,
+  onGroupChange,
+}: {
+  currentGroup?: UserGroup;
+  onGroupChange: (group: UserGroup) => void;
+}) {
+  return (
+    <View style={styles.groupSelector}>
+      <ThemedText style={styles.sectionTitle}>קבוצה</ThemedText>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {Object.entries(USER_GROUPS).map(([key, label]) => (
+          <TouchableOpacity
+            key={key}
+            style={[
+              styles.groupChip,
+              currentGroup === key && styles.groupChipSelected,
+            ]}
+            onPress={() => onGroupChange(key as UserGroup)}
+          >
+            <ThemedText
+              style={[
+                styles.groupChipText,
+                currentGroup === key && styles.groupChipTextSelected,
+              ]}
+            >
+              {label}
+            </ThemedText>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
-  const { userData, userRole } = useAuth();
+  const { userData, userRole, user } = useAuth(); // Add user from useAuth
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     name: "",
@@ -82,35 +118,67 @@ export default function ProfileScreen() {
 
   if (!userData) return null;
 
+  // Add function to check for existing requests
+  const checkExistingRequests = async () => {
+    try {
+      if (!user?.uid) return false; // Add guard clause
+
+      const requestsRef = collection(db, "profileEditRequests");
+      const q = query(
+        requestsRef,
+        where("userId", "==", user.uid), // Use user.uid instead of userData.id
+        where("status", "==", "pending"),
+        limit(1)
+      );
+
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        setEditRequest(snapshot.docs[0].data() as ProfileEditRequest);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking requests:", error);
+      return false;
+    }
+  };
+
   const handleEdit = async () => {
     try {
+      if (!user?.uid) {
+        Alert.alert("שגיאה", "משתמש לא מחובר");
+        return;
+      }
+
+      // Validation checks
       if (!editData.name || editData.name.trim().length < 2) {
         Alert.alert("שגיאה", "נא להזין שם תקין");
         return;
       }
 
-      if (editData.phoneNumber && !editData.phoneNumber.match(/^[\d-]+$/)) {
-        Alert.alert("שגיאה", "נא להזין מספר טלפון תקין");
+      // Get actual changes
+      const changes: { name?: string; phoneNumber?: string } = {};
+
+      if (editData.name !== userData?.name) {
+        changes.name = editData.name.trim();
+      }
+
+      if (editData.phoneNumber !== userData?.phoneNumber) {
+        changes.phoneNumber = editData.phoneNumber.trim();
+      }
+
+      // Check if there are any changes
+      if (Object.keys(changes).length === 0) {
+        Alert.alert("שגיאה", "לא בוצעו שינויים");
         return;
       }
 
-      // Check if there's already a pending request
-      if (editRequest?.status === "pending") {
-        Alert.alert("שגיאה", "קיימת כבר בקשת עדכון ממתינה");
-        return;
-      }
-
-      const request: Omit<ProfileEditRequest, "id"> = {
-        userId: userData.id,
-        userName: userData.name,
-        requestedChanges: {
-          name: editData.name !== userData.name ? editData.name : undefined,
-          phoneNumber:
-            editData.phoneNumber !== userData.phoneNumber
-              ? editData.phoneNumber
-              : undefined,
-        },
-        status: "pending",
+      // Create request object
+      const request = {
+        userId: user.uid,
+        userName: userData?.name || "",
+        requestedChanges: changes,
+        status: "pending" as const,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -119,7 +187,6 @@ export default function ProfileScreen() {
         collection(db, "profileEditRequests"),
         request
       );
-
       setEditRequest({ ...request, id: docRef.id });
       setIsEditing(false);
       Alert.alert("בקשה נשלחה", "בקשת העדכון נשלחה לאישור מנהל");
@@ -252,6 +319,37 @@ export default function ProfileScreen() {
               `טלפון חדש: ${editRequest.requestedChanges.phoneNumber}`}
           </ThemedText>
         </View>
+      )}
+
+      {userRole === "admin" ? (
+        <View style={styles.section}>
+          <GroupSelector
+            currentGroup={userData?.group}
+            onGroupChange={async (newGroup) => {
+              try {
+                await updateDoc(doc(db, "users", userData.id), {
+                  group: newGroup,
+                  updatedAt: new Date().toISOString(),
+                });
+                // Reload user data
+                await loadUserData();
+                Alert.alert("הצלחה", "הקבוצה עודכנה בהצלחה");
+              } catch (error) {
+                console.error("Error updating group:", error);
+                Alert.alert("שגיאה", "אירעה שגיאה בעדכון הקבוצה");
+              }
+            }}
+          />
+        </View>
+      ) : (
+        userData?.group && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>קבוצה</ThemedText>
+            <ThemedText style={styles.infoText}>
+              {USER_GROUPS[userData.group]}
+            </ThemedText>
+          </View>
+        )
       )}
     </ScrollView>
   );
@@ -421,5 +519,26 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontFamily: "Heebo-Bold",
+  },
+  groupSelector: {
+    marginVertical: 8,
+  },
+  groupChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#f3f4f6",
+    marginRight: 8,
+  },
+  groupChipSelected: {
+    backgroundColor: "#0066cc",
+  },
+  groupChipText: {
+    color: "#666666",
+    fontSize: 14,
+    fontFamily: "Heebo-Bold",
+  },
+  groupChipTextSelected: {
+    color: "#ffffff",
   },
 });
