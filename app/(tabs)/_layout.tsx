@@ -29,10 +29,19 @@ export default function TabLayout() {
         tabBarActiveTintColor: isDark ? "#3b82f6" : "#0066cc",
         tabBarInactiveTintColor: isDark ? "#9ca3af" : "#666666",
       }}
-      initialRouteName="profile"
     >
       <Tabs.Screen
-        name="calendar"
+        name="profile"
+        options={{
+          title: "פרופיל",
+          tabBarIcon: ({ color, size }) => (
+            <UserCircle size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="index"
         options={{
           title: "יומן",
           tabBarIcon: ({ color, size }) => (
@@ -40,6 +49,7 @@ export default function TabLayout() {
           ),
         }}
       />
+
       {(userRole === "admin" || userRole === "instructor") && (
         <Tabs.Screen
           name="reports"
@@ -51,6 +61,7 @@ export default function TabLayout() {
           }}
         />
       )}
+
       {userRole === "admin" && (
         <Tabs.Screen
           name="staff"
@@ -62,15 +73,7 @@ export default function TabLayout() {
           }}
         />
       )}
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "פרופיל",
-          tabBarIcon: ({ color, size }) => (
-            <UserCircle size={size} color={color} />
-          ),
-        }}
-      />
+
       <Tabs.Screen
         name="settings"
         options={{

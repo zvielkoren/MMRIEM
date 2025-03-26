@@ -33,7 +33,7 @@ export function checkPermissions(
 
     case "events":
       return {
-        read: true,
+        read: true, // Allow all users to read events
         write: userRole === "admin" || userRole === "instructor",
         update: userRole === "admin" || userRole === "instructor",
         delete: userRole === "admin",
@@ -84,11 +84,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Events collection rules
+    // Events collection rules - allow all authenticated users to read
     match /events/{eventId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && 
+      allow create, update: if isAuthenticated() && 
         (isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'instructor');
+      allow delete: if isAdmin();
     }
     
     // Reports collection rules

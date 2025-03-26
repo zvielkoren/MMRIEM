@@ -129,18 +129,22 @@ export const USER_PERMISSIONS = {
     canCreateReports: true,
     canViewStaff: true,
     canManageUsers: true,
+    canManageEvents: true,
   },
   instructor: {
     canViewReports: true,
     canCreateReports: true,
     canViewStaff: false,
     canManageUsers: false,
+    canManageEvents: true,
   },
   user: {
     canViewReports: false,
     canCreateReports: false,
     canViewStaff: false,
     canManageUsers: false,
+    canManageEvents: false,
+    canViewEvents: true,
   },
 } as const;
 
