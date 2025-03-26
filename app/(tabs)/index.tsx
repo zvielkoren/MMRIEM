@@ -38,6 +38,8 @@ import { getThemedStyles } from "@/utils/theme";
 import { DBUser } from "@/utils/dbTemplate";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { USER_GROUPS, UserGroup } from "@/utils/dbTemplate";
+import { Calendar as RNCalendar, CalendarProps } from "react-native-calendars";
+import { Calendar } from "lucide-react-native";
 
 interface CalendarEvent {
   id: string;
@@ -549,6 +551,9 @@ export default function CalendarScreen() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
   );
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
   const [fontsLoaded, fontError] = useFonts({
     "Heebo-Regular": Heebo_400Regular,
@@ -678,6 +683,23 @@ export default function CalendarScreen() {
     }
   };
 
+  const getMarkedDates = () => {
+    const marked: any = {};
+    events.forEach((event) => {
+      const date = new Date(event.startDate).toISOString().split("T")[0];
+      marked[date] = {
+        marked: true,
+        dotColor: themed.theme.primary,
+      };
+    });
+    return marked;
+  };
+
+  const filteredEvents = events.filter((event) => {
+    const eventDate = new Date(event.startDate).toISOString().split("T")[0];
+    return eventDate === selectedDate;
+  });
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
@@ -699,26 +721,42 @@ export default function CalendarScreen() {
 
   return (
     <View style={[styles.container, themed.contentBackground]}>
-      <View style={[styles.header, themed.surfaceBackground]}>
-        <ThemedText style={[styles.title, themed.text]}>יומן פעילות</ThemedText>
-        {(userRole === "admin" || userRole === "instructor") && (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setModalVisible(true)}
-          >
-            <Plus size={24} color={themed.theme.primary} />
-          </TouchableOpacity>
-        )}
+      <View style={styles.header}>
+        <Calendar size={24} color={themed.theme.text} />
+        <ThemedText style={styles.title}>לוח אירועים</ThemedText>
       </View>
-      {events.length === 0 ? (
-        <View style={styles.emptyState}>
-          <ThemedText style={styles.emptyText}>
-            אין אירועים בלוח השנה
-          </ThemedText>
-        </View>
-      ) : (
+
+      <RNCalendar
+        style={styles.calendar}
+        theme={{
+          calendarBackground: themed.theme.surface,
+          textSectionTitleColor: themed.theme.text,
+          selectedDayBackgroundColor: themed.theme.primary,
+          selectedDayTextColor: "#ffffff",
+          todayTextColor: themed.theme.primary,
+          dayTextColor: themed.theme.text,
+          textDisabledColor: themed.theme.textSecondary,
+          arrowColor: themed.theme.primary,
+          monthTextColor: themed.theme.text,
+        }}
+        markedDates={{
+          ...getMarkedDates(),
+          [selectedDate]: {
+            ...getMarkedDates()[selectedDate],
+            selected: true,
+          },
+        }}
+        onDayPress={(day) => setSelectedDate(day.dateString)}
+        enableSwipeMonths
+      />
+
+      <View style={styles.eventsContainer}>
+        <ThemedText style={styles.eventsTitle}>
+          אירועים ל-{new Date(selectedDate).toLocaleDateString("he-IL")}
+        </ThemedText>
+
         <FlatList
-          data={events}
+          data={filteredEvents}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -751,7 +789,7 @@ export default function CalendarScreen() {
           onRefresh={onRefresh}
           contentContainerStyle={styles.listContent}
         />
-      )}
+      </View>
       {userRole === "admin" && (
         <CreateEventModal
           visible={modalVisible}
@@ -1036,5 +1074,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 16,
     alignItems: "center",
+  },
+  calendar: {
+    marginBottom: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  eventsContainer: {
+    flex: 1,
+  },
+  eventsTitle: {
+    fontSize: 18,
+    fontFamily: "Heebo-Bold",
+    marginBottom: 12,
+    textAlign: "right",
   },
 });

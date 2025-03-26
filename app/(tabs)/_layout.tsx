@@ -43,7 +43,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "יומן",
+          title: "לוח אירועים",
           tabBarIcon: ({ color, size }) => (
             <Calendar size={size} color={color} />
           ),
@@ -51,27 +51,27 @@ export default function TabLayout() {
       />
 
       {userRole === "admin" && (
-        <Tabs.Screen
-          name="reports"
-          options={{
-            title: "דוחות",
-            tabBarIcon: ({ color, size }) => (
-              <ClipboardList size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+        <>
+          <Tabs.Screen
+            name="reports"
+            options={{
+              title: "דוחות",
+              tabBarIcon: ({ color, size }) => (
+                <ClipboardList size={size} color={color} />
+              ),
+            }}
+          />
 
-      {userRole === "admin" && (
-        <Tabs.Screen
-          name="staff"
-          options={{
-            title: "צוות",
-            tabBarIcon: ({ color, size }) => (
-              <Users size={size} color={color} />
-            ),
-          }}
-        />
+          <Tabs.Screen
+            name="staff"
+            options={{
+              title: "צוות",
+              tabBarIcon: ({ color, size }) => (
+                <Users size={size} color={color} />
+              ),
+            }}
+          />
+        </>
       )}
 
       <Tabs.Screen
