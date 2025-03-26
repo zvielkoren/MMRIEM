@@ -6,7 +6,8 @@ import {
   initializeDatabase,
   validateDatabaseStructure,
 } from "./utils/dbTemplate";
-import { Updates } from 'expo';
+import { Updates } from "expo";
+import { ThemeProvider } from "./contexts/ThemeContext";
 
 let hasInitialized = false;
 
@@ -43,10 +44,10 @@ export default function App() {
           await Updates.reloadAsync();
         }
       } catch (error) {
-        console.log('Error checking for updates:', error);
+        console.log("Error checking for updates:", error);
       }
     }
-    
+
     checkUpdate();
   }, []);
 
@@ -75,8 +76,10 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <ExpoRoot context={ctx} />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ExpoRoot context={ctx} />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

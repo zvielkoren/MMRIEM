@@ -16,15 +16,13 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase.config";
 import { UserPlus, Mail, Lock, User } from "lucide-react-native";
-import { ROLE_LABELS, UserRole } from "@/types/roles";
-import { Picker } from "@react-native-picker/picker";
+import { UserRole } from "@/types/roles";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [role, setRole] = useState<UserRole>("user");
 
   const handleRegister = async () => {
     try {
@@ -34,11 +32,11 @@ export default function RegisterScreen() {
         password
       );
 
-      // Create user document with role
+      // Create user document with fixed role
       await setDoc(doc(db, "users", userCredential.user.uid), {
         email,
         name,
-        role,
+        role: "user", // Set default role
         createdAt: new Date().toISOString(),
       });
 
@@ -105,18 +103,6 @@ export default function RegisterScreen() {
                 textContentType="newPassword"
                 autoComplete="new-password"
               />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Picker
-                selectedValue={role}
-                onValueChange={(value: any) => setRole(value)}
-                style={styles.input}
-              >
-                {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                  <Picker.Item key={key} label={label} value={key} />
-                ))}
-              </Picker>
             </View>
 
             {error ? <Text style={styles.error}>{error}</Text> : null}

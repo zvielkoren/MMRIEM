@@ -7,8 +7,17 @@ import {
   where,
   getDoc,
 } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "@/config/firebase";
 import { UserRole } from "@/types/roles";
+import { FIREBASE_RULES } from "@/firebase/rules";
+
+// Add password constants
+const DEFAULT_PASSWORDS = {
+  ADMIN: "Admin123!",
+  INSTRUCTOR: "Instructor123!",
+  USER: "User123!",
+} as const;
 
 // Database Collections Template
 export const DB_COLLECTIONS = {
@@ -17,6 +26,7 @@ export const DB_COLLECTIONS = {
   REPORTS: "reports",
   CALENDARS: "calendars",
   SETTINGS: "settings",
+  SESSIONS: "sessions",
 } as const;
 
 const DB_VERSION = "1.0";
@@ -67,6 +77,43 @@ interface DBReport {
   updatedAt: string;
 }
 
+// Add Session interface
+interface DBSession {
+  id: string;
+  userId: string;
+  deviceInfo: {
+    platform: string;
+    deviceId?: string;
+    browser?: string;
+  };
+  lastActive: string;
+  createdAt: string;
+  expiresAt: string;
+  isValid: boolean;
+}
+
+// Add user permissions
+export const USER_PERMISSIONS = {
+  admin: {
+    canViewReports: true,
+    canCreateReports: true,
+    canViewStaff: true,
+    canManageUsers: true,
+  },
+  instructor: {
+    canViewReports: true,
+    canCreateReports: true,
+    canViewStaff: false,
+    canManageUsers: false,
+  },
+  user: {
+    canViewReports: false,
+    canCreateReports: false,
+    canViewStaff: false,
+    canManageUsers: false,
+  },
+} as const;
+
 // Utility function to initialize database with template
 export async function initializeDatabase() {
   try {
@@ -88,35 +135,7 @@ export async function initializeDatabase() {
         console.log(
           "Copy these rules to Firebase Console -> Firestore -> Rules:"
         );
-        console.log(`
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Allow users to read their own data
-    match /users/{userId} {
-      allow read: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      allow write: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-    }
-    
-    // Allow authenticated users to read events
-    match /events/{eventId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'instructor']);
-    }
-    
-    // Allow authenticated users to read and write reports
-    match /reports/{reportId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-    
-    // Allow admin to manage settings
-    match /settings/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-  }
-}`);
+        console.log(FIREBASE_RULES);
         return;
       }
       throw error;
@@ -148,11 +167,11 @@ service cloud.firestore {
     }
 
     // Initialize Users Collection with Sample Data
-    const usersCollection = collection(db, DB_COLLECTIONS.USERS);
     const sampleUsers: DBUser[] = [
       {
         id: "admin",
         email: "admin@mmriem.com",
+        password: DEFAULT_PASSWORDS.ADMIN, // Will be removed after creation
         name: "מנהל ראשי",
         role: "admin",
         createdAt: new Date().toISOString(),
@@ -164,6 +183,7 @@ service cloud.firestore {
       {
         id: "instructor1",
         email: "instructor@mmriem.com",
+        password: DEFAULT_PASSWORDS.INSTRUCTOR, // Will be removed after creation
         name: "מדריך ראשי",
         role: "instructor",
         createdAt: new Date().toISOString(),
@@ -175,6 +195,7 @@ service cloud.firestore {
       {
         id: "user1",
         email: "user@mmriem.com",
+        password: DEFAULT_PASSWORDS.USER, // Will be removed after creation
         name: "משתמש לדוגמה",
         role: "user",
         createdAt: new Date().toISOString(),
@@ -187,11 +208,26 @@ service cloud.firestore {
 
     // Create users if they don't exist
     for (const user of sampleUsers) {
-      const userRef = doc(db, DB_COLLECTIONS.USERS, user.id);
-      const userDoc = await getDoc(userRef);
-      if (!userDoc.exists()) {
-        await setDoc(userRef, user);
-        console.log(`Created ${user.role} user: ${user.email}`);
+      try {
+        const { password, ...userData } = user;
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          user.email,
+          password
+        );
+        await setDoc(
+          doc(db, DB_COLLECTIONS.USERS, userCredential.user.uid),
+          userData
+        );
+        console.log(
+          `Created ${user.role} user: ${user.email} (Password: ${password})`
+        );
+      } catch (error: any) {
+        if (error.code === "auth/email-already-in-use") {
+          console.log(`User ${user.email} already exists`);
+        } else {
+          throw error;
+        }
       }
     }
 

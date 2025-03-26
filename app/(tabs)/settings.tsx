@@ -4,6 +4,7 @@ import {
   Switch,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
@@ -16,43 +17,104 @@ import {
 } from "lucide-react-native";
 import { auth } from "@/config/firebase";
 import { router } from "expo-router";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  deleteDoc,
+} from "firebase/firestore";
+import { db } from "@/config/firebase";
+import { useTheme } from "@/contexts/ThemeContext";
+import { getThemedStyles } from "@/utils/theme";
 
 export default function SettingsScreen() {
-  const { userRole, userData } = useAuth();
+  const { user, userRole, userData } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  const themed = getThemedStyles(isDark);
   const [notifications, setNotifications] = useState(
     userData?.settings?.notifications ?? true
   );
   const [darkMode, setDarkMode] = useState(false);
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    router.replace("/(auth)/login");
+  const handleLogout = () => {
+    Alert.alert(
+      "יציאה מהמערכת",
+      "האם אתה בטוח שברצונך להתנתק?",
+      [
+        { text: "ביטול", style: "cancel" },
+        {
+          text: "יציאה",
+          style: "destructive",
+          onPress: () => {
+            auth
+              .signOut()
+              .then(() => {
+                router.replace("/(auth)/login");
+              })
+              .catch((error) => {
+                console.error("Error during logout:", error);
+                Alert.alert("שגיאה", "אירעה שגיאה בעת ההתנתקות");
+              });
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <SettingsIcon size={24} color="#333" />
-        <ThemedText style={styles.title}>הגדרות</ThemedText>
+    <ScrollView style={[styles.container, themed.contentBackground]}>
+      <View style={[styles.header, themed.border]}>
+        <SettingsIcon size={24} color={themed.theme.text} />
+        <ThemedText style={[styles.title, themed.text]}>הגדרות</ThemedText>
       </View>
 
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>כללי</ThemedText>
+      <View style={[styles.section, themed.surfaceBackground]}>
+        <ThemedText style={[styles.sectionTitle, themed.text]}>כללי</ThemedText>
 
-        <View style={styles.settingItem}>
+        <View
+          style={[
+            styles.settingItem,
+            { borderBottomColor: themed.theme.border },
+          ]}
+        >
           <View style={styles.settingLeft}>
-            <Bell size={20} color="#666" />
-            <ThemedText style={styles.settingText}>התראות</ThemedText>
+            <Bell size={20} color={themed.theme.textSecondary} />
+            <ThemedText style={[styles.settingText, themed.text]}>
+              התראות
+            </ThemedText>
           </View>
-          <Switch value={notifications} onValueChange={setNotifications} />
+          <Switch
+            value={notifications}
+            onValueChange={setNotifications}
+            trackColor={{
+              false: themed.theme.border,
+              true: themed.theme.primary,
+            }}
+          />
         </View>
 
-        <View style={styles.settingItem}>
+        <View
+          style={[
+            styles.settingItem,
+            { borderBottomColor: themed.theme.border },
+          ]}
+        >
           <View style={styles.settingLeft}>
-            <Moon size={20} color="#666" />
-            <ThemedText style={styles.settingText}>מצב כהה</ThemedText>
+            <Moon size={20} color={themed.theme.textSecondary} />
+            <ThemedText style={[styles.settingText, themed.text]}>
+              מצב כהה
+            </ThemedText>
           </View>
-          <Switch value={darkMode} onValueChange={setDarkMode} />
+          <Switch
+            value={isDark}
+            onValueChange={toggleTheme}
+            trackColor={{
+              false: themed.theme.border,
+              true: themed.theme.primary,
+            }}
+          />
         </View>
       </View>
 
@@ -64,9 +126,13 @@ export default function SettingsScreen() {
         <ThemedText style={styles.email}>{userData?.email}</ThemedText>
       </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={handleLogout}
+        activeOpacity={0.7}
+      >
         <LogOut size={20} color="#dc2626" />
-        <ThemedText style={styles.logoutText}>התנתק</ThemedText>
+        <ThemedText style={styles.logoutText}>התנתק מהמערכת</ThemedText>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -137,6 +203,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     marginTop: 24,
+    marginBottom: 32,
   },
   logoutText: {
     color: "#dc2626",

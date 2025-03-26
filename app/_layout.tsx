@@ -9,26 +9,15 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      if (!loading) {
-        if (!user) {
-          // Force redirect to login
-          await router.replace({
-            pathname: "/(auth)/login",
-            params: { refresh: Date.now() },
-          });
-        } else if (segments[0] === "(auth)") {
-          // Force redirect to tabs if authenticated
-          await router.replace({
-            pathname: "/(tabs)",
-            params: { refresh: Date.now() },
-          });
-        }
+    if (!loading) {
+      const inAuthGroup = segments[0] === "(auth)";
+      if (!user && !inAuthGroup) {
+        router.replace("/(auth)/login");
+      } else if (user && inAuthGroup) {
+        router.replace("/profile"); // Default to profile page for authenticated users
       }
-    };
-
-    checkAuth();
-  }, [user, loading, segments]);
+    }
+  }, [user, loading]);
 
   if (loading) {
     return (
@@ -41,7 +30,6 @@ export default function RootLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" options={{ animation: "none" }} />
-      <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
     </Stack>
   );
 }
