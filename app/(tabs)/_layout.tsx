@@ -50,6 +50,7 @@ export default function TabLayout() {
         }}
       />
 
+<<<<<<< HEAD
       {userRole === "admin" && (
         <>
           <Tabs.Screen
@@ -61,6 +62,19 @@ export default function TabLayout() {
               ),
             }}
           />
+=======
+      {(userRole === "admin" || userRole === "instructor") && (
+        <Tabs.Screen
+          name="reports"
+          options={{
+            title: "דוחות",
+            tabBarIcon: ({ color, size }) => (
+              <ClipboardList size={size} color={color} />
+            ),
+          }}
+        />
+      )}
+>>>>>>> parent of e04b692 (refactor permissions; restrict access to reports and group management to admin users, enhance phone authentication in registration)
 
           <Tabs.Screen
             name="staff"

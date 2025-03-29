@@ -222,32 +222,24 @@ function ReportDetailsModal({
   getStatusText, // Add this prop
 }: ReportDetailsModalProps) {
   const [userName, setUserName] = useState("");
-  const [instructorName, setInstructorName] = useState(""); // Add this
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDetails = async () => {
+    const fetchUserDetails = async () => {
       try {
-        const [userDoc, instructorDoc] = await Promise.all([
-          getDoc(doc(db, "users", report.userId)),
-          getDoc(doc(db, "users", report.instructorId)),
-        ]);
-
+        const userDoc = await getDoc(doc(db, "users", report.userId));
         if (userDoc.exists()) {
           setUserName(userDoc.data().name);
         }
-        if (instructorDoc.exists()) {
-          setInstructorName(instructorDoc.data().name);
-        }
       } catch (error) {
-        console.error("Error fetching details:", error);
+        console.error("Error fetching user details:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDetails();
-  }, [report.userId, report.instructorId]);
+    fetchUserDetails();
+  }, [report.userId]);
 
   if (loading) {
     return (
@@ -288,11 +280,6 @@ function ReportDetailsModal({
             <ThemedText style={styles.detailText}>
               {new Date(report.createdAt).toLocaleDateString("he-IL")}
             </ThemedText>
-          </View>
-
-          <View style={styles.detailRow}>
-            <ThemedText style={styles.detailLabel}>נכתב על ידי:</ThemedText>
-            <ThemedText style={styles.detailText}>{instructorName}</ThemedText>
           </View>
 
           <View style={styles.contentBox}>

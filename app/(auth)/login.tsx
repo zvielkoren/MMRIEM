@@ -73,7 +73,7 @@ export default function LoginScreen() {
         password
       );
       await createSession(userCredential.user.uid);
-      router.replace("/(tabs)/calendar");
+      router.replace("/");
     } catch (err: any) {
       switch (err.code) {
         case "auth/invalid-email":

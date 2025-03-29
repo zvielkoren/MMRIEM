@@ -47,24 +47,10 @@ interface ProfileEditRequest {
 function GroupSelector({
   currentGroup,
   onGroupChange,
-  isAdmin, // Add this prop
 }: {
   currentGroup?: UserGroup;
   onGroupChange: (group: UserGroup) => void;
-  isAdmin: boolean;
 }) {
-  // Only render if admin
-  if (!isAdmin) {
-    return (
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>קבוצה</ThemedText>
-        <ThemedText style={styles.infoText}>
-          {currentGroup ? USER_GROUPS[currentGroup] : "לא משויך לקבוצה"}
-        </ThemedText>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.groupSelector}>
       <ThemedText style={styles.sectionTitle}>קבוצה</ThemedText>
@@ -335,26 +321,35 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {userData?.group && (
-        <GroupSelector
-          currentGroup={userData.group}
-          onGroupChange={async (newGroup) => {
-            if (userRole !== "admin") return; // Add this check
-            try {
-              await updateDoc(doc(db, "users", userData.id), {
-                group: newGroup,
-                updatedAt: new Date().toISOString(),
-              });
-              // Reload user data
-              await loadUserData();
-              Alert.alert("הצלחה", "הקבוצה עודכנה בהצלחה");
-            } catch (error) {
-              console.error("Error updating group:", error);
-              Alert.alert("שגיאה", "אירעה שגיאה בעדכון הקבוצה");
-            }
-          }}
-          isAdmin={userRole === "admin"}
-        />
+      {userRole === "admin" ? (
+        <View style={styles.section}>
+          <GroupSelector
+            currentGroup={userData?.group}
+            onGroupChange={async (newGroup) => {
+              try {
+                await updateDoc(doc(db, "users", userData.id), {
+                  group: newGroup,
+                  updatedAt: new Date().toISOString(),
+                });
+                // Reload user data
+                await loadUserData();
+                Alert.alert("הצלחה", "הקבוצה עודכנה בהצלחה");
+              } catch (error) {
+                console.error("Error updating group:", error);
+                Alert.alert("שגיאה", "אירעה שגיאה בעדכון הקבוצה");
+              }
+            }}
+          />
+        </View>
+      ) : (
+        userData?.group && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>קבוצה</ThemedText>
+            <ThemedText style={styles.infoText}>
+              {USER_GROUPS[userData.group]}
+            </ThemedText>
+          </View>
+        )
       )}
     </ScrollView>
   );

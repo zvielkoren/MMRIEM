@@ -10,17 +10,12 @@ import {
   Platform,
   ScrollView,
   SafeAreaView,
-  Alert,
 } from "react-native";
 import { Link, router } from "expo-router";
-import {
-  createUserWithEmailAndPassword,
-  PhoneAuthProvider,
-  signInWithCredential,
-} from "firebase/auth";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase.config";
-import { UserPlus, Mail, Lock, User, Phone } from "lucide-react-native";
+import { UserPlus, Mail, Lock, User } from "lucide-react-native";
 import { UserRole } from "@/types/roles";
 
 export default function RegisterScreen() {
@@ -28,10 +23,6 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [verificationId, setVerificationId] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
 
   const handleRegister = async () => {
     try {
@@ -52,49 +43,6 @@ export default function RegisterScreen() {
       router.replace("/(tabs)/profile");
     } catch (err) {
       setError("שגיאה בהרשמה. אנא בדקו את הפרטים ונסו שוב.");
-    }
-  };
-
-  const handlePhoneAuth = async () => {
-    try {
-      const formattedPhone = phoneNumber.startsWith("+")
-        ? phoneNumber
-        : `+972${phoneNumber.replace(/^0/, "")}`;
-      const provider = new PhoneAuthProvider(auth);
-      const verificationId = await provider.verifyPhoneNumber(
-        formattedPhone,
-        window.recaptchaVerifier
-      );
-      setVerificationId(verificationId);
-      setIsVerifying(true);
-      Alert.alert("קוד אימות נשלח", "נא להזין את הקוד שקיבלת בהודעת SMS");
-    } catch (error) {
-      console.error("Error sending verification code:", error);
-      Alert.alert("שגיאה", "אירעה שגיאה בשליחת קוד האימות");
-    }
-  };
-
-  const verifyCode = async () => {
-    try {
-      const credential = PhoneAuthProvider.credential(
-        verificationId,
-        verificationCode
-      );
-      const userCredential = await signInWithCredential(auth, credential);
-
-      // Create user document
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        id: userCredential.user.uid,
-        phoneNumber,
-        name,
-        role: "user",
-        createdAt: new Date().toISOString(),
-      });
-
-      router.replace("/(tabs)/profile");
-    } catch (error) {
-      console.error("Error verifying code:", error);
-      Alert.alert("שגיאה", "קוד האימות שגוי");
     }
   };
 
@@ -156,40 +104,6 @@ export default function RegisterScreen() {
                 autoComplete="new-password"
               />
             </View>
-
-            <View style={styles.inputContainer}>
-              <Phone size={20} color="#666666" />
-              <TextInput
-                style={styles.input}
-                placeholder="מספר טלפון"
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                keyboardType="phone-pad"
-                textAlign="right"
-              />
-            </View>
-
-            {isVerifying ? (
-              <>
-                <View style={styles.inputContainer}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="קוד אימות"
-                    value={verificationCode}
-                    onChangeText={setVerificationCode}
-                    keyboardType="numeric"
-                    textAlign="right"
-                  />
-                </View>
-                <TouchableOpacity style={styles.button} onPress={verifyCode}>
-                  <Text style={styles.buttonText}>אמת קוד</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity style={styles.button} onPress={handlePhoneAuth}>
-                <Text style={styles.buttonText}>שלח קוד אימות</Text>
-              </TouchableOpacity>
-            )}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
