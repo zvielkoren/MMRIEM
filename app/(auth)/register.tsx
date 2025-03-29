@@ -18,7 +18,7 @@ import { auth, db } from "@/firebase.config";
 import { UserPlus, Mail, Lock, User } from "lucide-react-native";
 import { UserRole } from "@/types/roles";
 
-export default function RegisterScreen() {
+const RegisterScreen: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,22 +26,29 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     try {
+      if (!email || !password || !name) {
+        setError("נא למלא את כל השדות");
+        return;
+      }
+
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        email,
+        email.trim(),
         password
       );
 
       await setDoc(doc(db, "users", userCredential.user.uid), {
         id: userCredential.user.uid,
-        email,
+        email: email.trim(),
         name,
         role: "user",
         createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
       });
 
-      router.replace("/(tabs)/profile");
-    } catch (err) {
+      router.replace("/(tabs)");
+    } catch (err: any) {
+      console.error("Registration error:", err);
       setError("שגיאה בהרשמה. אנא בדקו את הפרטים ונסו שוב.");
     }
   };
@@ -126,7 +133,9 @@ export default function RegisterScreen() {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}
+};
+
+export default RegisterScreen;
 
 const styles = StyleSheet.create({
   safeArea: {

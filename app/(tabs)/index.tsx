@@ -126,7 +126,7 @@ function EventDetailsModal({
             {canEdit && (
               <View style={styles.headerActions}>
                 <TouchableOpacity onPress={() => setIsEditing(true)}>
-                  <Edit size={20} color="#0066cc" />
+                  <Edit width={20} height={20} color="#0066cc" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -144,7 +144,7 @@ function EventDetailsModal({
                     );
                   }}
                 >
-                  <Trash2 size={20} color="#dc2626" />
+                  <Trash2 width={20} height={20} color="#dc2626" />
                 </TouchableOpacity>
               </View>
             )}
@@ -257,7 +257,7 @@ function CreateEventModal({
     const usersSnap = await getDocs(collection(db, "users"));
     const users = usersSnap.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data(),
+      ...(doc.data() as DBUser),
     }));
     setAvailableUsers(users);
   };
@@ -472,10 +472,7 @@ function CreateEventModal({
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>תאריך ושעת סיום</ThemedText>
             <View style={styles.dateTimeContainer}>
-              <TouchableOpacity
-                style={styles.dateTimeButton}
-                onPress={() => setShowEndDatePicker(true)}
-              >
+              <TouchableOpacity onPress={() => setShowEndDatePicker(true)}>
                 <ThemedText>{formatDateDisplay(endDate)}</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
@@ -746,7 +743,9 @@ export default function CalendarScreen() {
             selected: true,
           },
         }}
-        onDayPress={(day) => setSelectedDate(day.dateString)}
+        onDayPress={(day: { dateString: React.SetStateAction<string> }) =>
+          setSelectedDate(day.dateString)
+        }
         enableSwipeMonths
       />
 
@@ -1083,14 +1082,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-  },
-  eventsContainer: {
-    flex: 1,
-  },
-  eventsTitle: {
-    fontSize: 18,
-    fontFamily: "Heebo-Bold",
-    marginBottom: 12,
-    textAlign: "right",
   },
 });

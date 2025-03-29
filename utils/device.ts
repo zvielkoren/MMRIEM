@@ -7,7 +7,7 @@ export async function getDeviceId(): Promise<string> {
   }
 
   return (
-    Application.androidId ||
+    (await Application.getAndroidId()) ||
     (await Application.getIosIdForVendorAsync()) ||
     "unknown"
   );

@@ -11,7 +11,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <ExpoRoot context={ctx} fallback={() => <SplashScreen />} />
+        <ExpoRoot context={ctx} />
       </AuthProvider>
     </ThemeProvider>
   );

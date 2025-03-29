@@ -113,6 +113,17 @@ function ProfileRequestsModal({
   visible: boolean;
   onClose: () => void;
 }) {
+  interface ProfileEditRequest {
+    id: string;
+    userId: string;
+    userName: string;
+    requestedChanges: {
+      name?: string;
+      phoneNumber?: string;
+    };
+    status: string;
+  }
+
   const [requests, setRequests] = useState<ProfileEditRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -128,7 +139,15 @@ function ProfileRequestsModal({
           where("status", "==", "pending")
         )
       );
-      setRequests(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setRequests(
+        snapshot.docs.map((doc) => ({
+          id: doc.id,
+          userId: doc.data().userId || "",
+          userName: doc.data().userName || "",
+          requestedChanges: doc.data().requestedChanges || {},
+          status: doc.data().status || "pending",
+        }))
+      );
     } catch (error) {
       console.error("Error loading requests:", error);
     } finally {

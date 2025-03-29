@@ -33,6 +33,7 @@ import { db } from "@/config/firebase";
 import { USER_GROUPS, UserGroup } from "@/utils/dbTemplate";
 
 interface ProfileEditRequest {
+  id?: string; // Add the id property
   userId: string;
   userName: string;
   requestedChanges: {
@@ -195,6 +196,10 @@ export default function ProfileScreen() {
       Alert.alert("שגיאה", "אירעה שגיאה בשמירת הפרטים");
     }
   };
+
+  function loadUserData() {
+    throw new Error("Function not implemented.");
+  }
 
   return (
     <ScrollView style={styles.container}>

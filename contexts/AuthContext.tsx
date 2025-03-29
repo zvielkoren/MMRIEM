@@ -28,27 +28,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [userData, setUserData] = useState<DBUser | null>(null);
 
   useEffect(() => {
-    // Set initial loading state
     setLoading(true);
 
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       try {
-        if (user) {
-          // Get user data from Firestore
-          const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (firebaseUser) {
+          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
 
           if (userDoc.exists()) {
             const userData = userDoc.data() as DBUser;
-            setUserRole(userData?.role || "user");
+            setUser(firebaseUser);
+            setUserRole(userData.role);
             setUserData(userData);
-            setUser(user);
 
             // Update last login
-            await updateDoc(doc(db, "users", user.uid), {
+            await updateDoc(doc(db, "users", firebaseUser.uid), {
               lastLogin: new Date().toISOString(),
-            });
+            }).catch(console.error);
           } else {
-            // User document doesn't exist - sign out
+            console.warn("User document not found");
             await auth.signOut();
             setUser(null);
             setUserRole(null);
@@ -60,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setUserData(null);
         }
       } catch (error) {
-        console.error("Error in auth state change:", error);
+        console.error("Auth state change error:", error);
         setUser(null);
         setUserRole(null);
         setUserData(null);

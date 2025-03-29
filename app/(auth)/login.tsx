@@ -10,16 +10,23 @@ import {
 } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { TextInput } from "react-native";
-import { auth } from "@/config/firebase";
+import {
+  auth,
+  recaptchaVerifier,
+  getPhoneProvider,
+  phoneAuth,
+} from "@/firebase/config";
 import {
   signInWithEmailAndPassword,
   PhoneAuthProvider,
   signInWithCredential,
+  RecaptchaVerifier,
 } from "firebase/auth";
 import { useRouter } from "expo-router";
 import { db } from "@/config/firebase";
 import { Mail, Lock, Phone } from "lucide-react-native";
 import { getDeviceId } from "@/utils/device";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -45,52 +52,40 @@ export default function LoginScreen() {
     return true;
   };
 
-  const createSession = async (userId: string) => {
-    const sessionId = Math.random().toString(36).slice(2);
-    await setDoc(doc(db, "sessions", sessionId), {
-      id: sessionId,
-      userId,
-      deviceInfo: {
-        platform: Platform.OS,
-        deviceId: await getDeviceId(),
-      },
-      lastActive: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      isValid: true,
-    });
-  };
-
   const handleLogin = async () => {
     try {
       setError("");
-      if (!validateInputs()) return;
-
       setIsLoading(true);
+      console.log("Login attempt with:", email); // Add logging
+
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email.trim(),
         password
       );
-      await createSession(userCredential.user.uid);
-      router.replace("/");
-    } catch (err: any) {
-      switch (err.code) {
-        case "auth/invalid-email":
-          setError("פורמט אימייל לא תקין");
-          break;
-        case "auth/user-disabled":
-          setError("המשתמש חסום");
-          break;
-        case "auth/user-not-found":
-          setError("משתמש לא קיים");
-          break;
-        case "auth/wrong-password":
-          setError("סיסמה שגויה");
-          break;
-        default:
-          setError("שגיאה בהתחברות. נסה שוב");
-      }
+      console.log("Login successful:", userCredential.user.uid); // Add logging
+
+      // Create session
+      const sessionId = Math.random().toString(36).slice(2);
+      await setDoc(doc(db, "sessions", sessionId), {
+        id: sessionId,
+        userId: userCredential.user.uid,
+        deviceInfo: {
+          platform: Platform.OS,
+          deviceId: await getDeviceId(),
+        },
+        lastActive: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(
+          Date.now() + 30 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+        isValid: true,
+      });
+
+      router.replace("/(tabs)/profile");
+    } catch (error: any) {
+      console.error("Login error:", error); // Add error logging
+      setError("שגיאה בהתחברות. נסה שוב");
     } finally {
       setIsLoading(false);
     }
@@ -98,36 +93,82 @@ export default function LoginScreen() {
 
   const handlePhoneAuth = async () => {
     try {
+      if (!phoneNumber) {
+        setError("נא להזין מספר טלפון");
+        return;
+      }
+
+      if (Platform.OS !== "web") {
+        Alert.alert("שגיאה", "אימות טלפון זמין רק בגרסת הדפדפן");
+        return;
+      }
+
       const formattedPhone = phoneNumber.startsWith("+")
         ? phoneNumber
         : `+972${phoneNumber.replace(/^0/, "")}`;
 
-      const provider = new PhoneAuthProvider(auth);
-      const verificationId = await provider.verifyPhoneNumber(
-        formattedPhone,
-        window.recaptchaVerifier
-      );
+      console.log("Sending verification code to:", formattedPhone);
 
-      setVerificationId(verificationId);
+      const confirmationResult = await phoneAuth.sendVerificationCode(
+        formattedPhone
+      );
+      window.confirmationResult = confirmationResult;
+
       setIsVerifying(true);
       Alert.alert("קוד אימות נשלח", "נא להזין את הקוד שקיבלת בהודעת SMS");
-    } catch (error) {
-      console.error("Error sending verification code:", error);
-      setError("אירעה שגיאה בשליחת קוד האימות");
+    } catch (error: any) {
+      console.error("Phone auth error:", error);
+      setError(error.message || "אירעה שגיאה בשליחת קוד האימות");
     }
   };
 
   const verifyPhoneCode = async () => {
     try {
-      const credential = PhoneAuthProvider.credential(
-        verificationId,
+      if (!verificationCode) {
+        setError("נא להזין קוד אימות");
+        return;
+      }
+
+      if (!window.confirmationResult) {
+        setError("לא נמצא קוד אימות פעיל");
+        return;
+      }
+
+      setIsLoading(true);
+      const userCredential = await window.confirmationResult.confirm(
         verificationCode
       );
-      await signInWithCredential(auth, credential);
+
+      // Create session after successful verification
+      const sessionId = Math.random().toString(36).slice(2);
+      await setDoc(doc(db, "sessions", sessionId), {
+        id: sessionId,
+        userId: userCredential.user.uid,
+        deviceInfo: {
+          platform: Platform.OS,
+          deviceId: await getDeviceId(),
+        },
+        lastActive: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(
+          Date.now() + 30 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+        isValid: true,
+      });
+
+      // Navigate to profile page
       router.replace("/(tabs)/profile");
-    } catch (error) {
-      console.error("Error verifying code:", error);
-      setError("קוד האימות שגוי");
+    } catch (error: any) {
+      console.error("Verification error:", error);
+      if (error.code === "auth/invalid-verification-code") {
+        setError("קוד האימות שגוי");
+      } else if (error.code === "auth/code-expired") {
+        setError("קוד האימות פג תוקף");
+      } else {
+        setError("אירעה שגיאה באימות הקוד");
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -185,7 +226,6 @@ export default function LoginScreen() {
                 editable={!isLoading}
               />
             </View>
-
             <View style={styles.inputContainer}>
               <Lock size={20} color="#666666" />
               <TextInput
@@ -197,7 +237,6 @@ export default function LoginScreen() {
                 editable={!isLoading}
               />
             </View>
-
             <TouchableOpacity
               style={styles.loginButton}
               onPress={handleLogin}
@@ -250,10 +289,12 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.footer}>
-        <ThemedText style={styles.footerText}>עדיין אין לך חשבון? </ThemedText>
-        <TouchableOpacity onPress={handleRegister}>
-          <ThemedText style={styles.registerLink}>הירשם עכשיו</ThemedText>
-        </TouchableOpacity>
+        <View style={styles.footerContent}>
+          <ThemedText style={styles.footerText}>עדיין אין לך חשבון?</ThemedText>
+          <TouchableOpacity onPress={handleRegister}>
+            <ThemedText style={styles.registerLink}>הירשם עכשיו</ThemedText>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -331,6 +372,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 20,
+  },
+  footerContent: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
   footerText: {
     color: "#666666",

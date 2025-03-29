@@ -44,6 +44,7 @@ export type UserGroup = keyof typeof USER_GROUPS;
 
 // Template Data Structures
 export interface DBUser {
+  students: any;
   id: string;
   email: string;
   name: string;
@@ -194,6 +195,7 @@ export async function initializeDatabase() {
           notifications: true,
           language: "he",
         },
+        students: undefined
       };
 
       await setDoc(doc(db, DB_COLLECTIONS.USERS, adminUser.id), adminUser);

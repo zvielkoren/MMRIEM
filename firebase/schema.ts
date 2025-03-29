@@ -32,7 +32,7 @@ export interface FirebaseUser {
   students?: string[]; // For instructors
 }
 
-export const DEFAULT_USER_SETTINGS = {
+export const DEFAULT_USER_SETTINGS: FirebaseUser["settings"] = {
   notifications: true,
   language: "he",
   theme: "light",
