@@ -1,0 +1,2 @@
+[33m5b07ac9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/ci-cd-workflow[m[33m, [m[1;31morigin/feature/ci-cd-workflow[m[33m)[m Downgrade intl package to 0.18.1 for SDK compatibility
+[33maa93bb1[m Fix intl package version to 0.20.2 for SDK compatibility
