@@ -61,7 +61,7 @@ function UserDetailsModal({
           <View style={styles.detailRow}>
             <ThemedText style={styles.detailLabel}>תפקיד:</ThemedText>
             <View style={styles.roleButtonsContainer}>
-              {availableRoles.map(([role, label]) => (
+              {Object.entries(ROLE_LABELS).map(([role, label]) => (
                 <TouchableOpacity
                   key={role}
                   style={[

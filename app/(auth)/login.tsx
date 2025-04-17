@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  ScrollView,
 } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { TextInput } from "react-native";
@@ -27,8 +30,20 @@ import { db } from "@/config/firebase";
 import { Mail, Lock, Phone } from "lucide-react-native";
 import { getDeviceId } from "@/utils/device";
 import { doc, setDoc } from "firebase/firestore";
+import { useAuth } from "../../contexts/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function LoginScreen() {
+const formatPhoneInput = (input: string): string => {
+  // Remove all non-digit characters except the first 0
+  const firstChar = input.charAt(0);
+  const rest = input.slice(1).replace(/\D/g, "");
+  const digits = firstChar === "0" ? "0" + rest : rest;
+
+  // Return only digits
+  return digits;
+};
+
+const LoginScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -39,31 +54,49 @@ export default function LoginScreen() {
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const router = useRouter();
+  const { signInWithPhone, verifyPhoneCode, loading } = useAuth();
+
+  const handlePhoneChange = (text: string) => {
+    const formatted = formatPhoneInput(text);
+    setPhoneNumber(formatted);
+  };
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
   const validateInputs = () => {
-    if (!email || !password) {
-      setError("נא למלא את כל השדות");
-      return false;
-    }
-    if (!email.includes("@")) {
-      setError("נא להזין כתובת אימייל תקינה");
-      return false;
+    if (loginMethod === "email") {
+      if (!email || !password) {
+        setError("נא למלא את כל השדות");
+        return false;
+      }
+      if (!validateEmail(email)) {
+        setError("נא להזין כתובת אימייל תקינה");
+        return false;
+      }
+      return true;
     }
     return true;
   };
 
   const handleLogin = async () => {
+    if (!validateInputs()) {
+      return;
+    }
+
     try {
       setError("");
       setIsLoading(true);
-      console.log("Login attempt with:", email); // Add logging
+      console.log("Login attempt with:", email);
 
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email.trim(),
         password
       );
-      console.log("Login successful:", userCredential.user.uid); // Add logging
+      console.log("Login successful:", userCredential.user.uid);
 
       // Create session
       const sessionId = Math.random().toString(36).slice(2);
@@ -84,91 +117,44 @@ export default function LoginScreen() {
 
       router.replace("/(tabs)/profile");
     } catch (error: any) {
-      console.error("Login error:", error); // Add error logging
+      console.error("Login error:", error);
       setError("שגיאה בהתחברות. נסה שוב");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePhoneAuth = async () => {
+  const handlePhoneLogin = async () => {
     try {
       if (!phoneNumber) {
-        setError("נא להזין מספר טלפון");
+        Alert.alert("שגיאה", "נא להזין מספר טלפון");
         return;
       }
 
-      if (Platform.OS !== "web") {
-        Alert.alert("שגיאה", "אימות טלפון זמין רק בגרסת הדפדפן");
-        return;
-      }
-
-      const formattedPhone = phoneNumber.startsWith("+")
-        ? phoneNumber
-        : `+972${phoneNumber.replace(/^0/, "")}`;
-
-      console.log("Sending verification code to:", formattedPhone);
-
-      const confirmationResult = await phoneAuth.sendVerificationCode(
-        formattedPhone
-      );
-      window.confirmationResult = confirmationResult;
-
+      await signInWithPhone(phoneNumber);
       setIsVerifying(true);
-      Alert.alert("קוד אימות נשלח", "נא להזין את הקוד שקיבלת בהודעת SMS");
-    } catch (error: any) {
-      console.error("Phone auth error:", error);
-      setError(error.message || "אירעה שגיאה בשליחת קוד האימות");
+    } catch (error) {
+      Alert.alert(
+        "שגיאה",
+        error instanceof Error ? error.message : "שגיאה בהתחברות"
+      );
     }
   };
 
-  const verifyPhoneCode = async () => {
+  const handleVerifyCode = async () => {
     try {
       if (!verificationCode) {
-        setError("נא להזין קוד אימות");
+        Alert.alert("שגיאה", "נא להזין קוד אימות");
         return;
       }
 
-      if (!window.confirmationResult) {
-        setError("לא נמצא קוד אימות פעיל");
-        return;
-      }
-
-      setIsLoading(true);
-      const userCredential = await window.confirmationResult.confirm(
-        verificationCode
+      await verifyPhoneCode(verificationCode);
+      router.replace("/(tabs)");
+    } catch (error) {
+      Alert.alert(
+        "שגיאה",
+        error instanceof Error ? error.message : "שגיאה באימות הקוד"
       );
-
-      // Create session after successful verification
-      const sessionId = Math.random().toString(36).slice(2);
-      await setDoc(doc(db, "sessions", sessionId), {
-        id: sessionId,
-        userId: userCredential.user.uid,
-        deviceInfo: {
-          platform: Platform.OS,
-          deviceId: await getDeviceId(),
-        },
-        lastActive: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        expiresAt: new Date(
-          Date.now() + 30 * 24 * 60 * 60 * 1000
-        ).toISOString(),
-        isValid: true,
-      });
-
-      // Navigate to profile page
-      router.replace("/(tabs)/profile");
-    } catch (error: any) {
-      console.error("Verification error:", error);
-      if (error.code === "auth/invalid-verification-code") {
-        setError("קוד האימות שגוי");
-      } else if (error.code === "auth/code-expired") {
-        setError("קוד האימות פג תוקף");
-      } else {
-        setError("אירעה שגיאה באימות הקוד");
-      }
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -176,135 +162,179 @@ export default function LoginScreen() {
     router.push("/(auth)/register");
   };
 
+  const handleSubmit = () => {
+    if (loginMethod === "email") {
+      handleLogin();
+    } else if (!isVerifying) {
+      handlePhoneLogin();
+    } else {
+      handleVerifyCode();
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Image
-          source={require("@/assets/images/logo.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <ThemedText style={styles.title}>ברוכים הבאים</ThemedText>
-        <ThemedText style={styles.subtitle}>התחבר למערכת</ThemedText>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.container}
+      >
+        <ScrollView contentContainerStyle={styles.scrollView}>
+          <View style={styles.header}>
+            <Image
+              source={require("@/assets/images/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <ThemedText style={styles.title}>ברוכים הבאים</ThemedText>
+            <ThemedText style={styles.subtitle}>התחבר למערכת</ThemedText>
+          </View>
 
-      <View style={styles.form}>
-        {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+          <View style={styles.form}>
+            {error && <ThemedText style={styles.error}>{error}</ThemedText>}
 
-        <View style={styles.loginMethodToggle}>
-          <TouchableOpacity
-            style={[
-              styles.methodButton,
-              loginMethod === "email" && styles.methodButtonActive,
-            ]}
-            onPress={() => setLoginMethod("email")}
-          >
-            <ThemedText>התחברות עם אימייל</ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.methodButton,
-              loginMethod === "phone" && styles.methodButtonActive,
-            ]}
-            onPress={() => setLoginMethod("phone")}
-          >
-            <ThemedText>התחברות עם טלפון</ThemedText>
-          </TouchableOpacity>
-        </View>
-
-        {loginMethod === "email" ? (
-          <>
-            <View style={styles.inputContainer}>
-              <Mail size={20} color="#666666" />
-              <TextInput
-                style={styles.input}
-                placeholder="אימייל"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!isLoading}
-              />
+            <View style={styles.loginMethodToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.methodButton,
+                  loginMethod === "email" && styles.methodButtonActive,
+                ]}
+                onPress={() => setLoginMethod("email")}
+              >
+                <ThemedText>התחברות עם אימייל</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.methodButton,
+                  loginMethod === "phone" && styles.methodButtonActive,
+                ]}
+                onPress={() => setLoginMethod("phone")}
+              >
+                <ThemedText>התחברות עם טלפון</ThemedText>
+              </TouchableOpacity>
             </View>
-            <View style={styles.inputContainer}>
-              <Lock size={20} color="#666666" />
-              <TextInput
-                style={styles.input}
-                placeholder="סיסמה"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                editable={!isLoading}
-              />
-            </View>
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={handleLogin}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <ThemedText style={styles.loginButtonText}>התחבר</ThemedText>
-              )}
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            {!isVerifying ? (
-              <View style={styles.inputContainer}>
-                <Phone size={20} color="#666666" />
-                <TextInput
-                  style={styles.input}
-                  placeholder="מספר טלפון"
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  keyboardType="phone-pad"
-                  textAlign="right"
-                />
-              </View>
+
+            {loginMethod === "email" ? (
+              <>
+                <View style={styles.inputContainer}>
+                  <Mail size={20} color="#666666" />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="אימייל"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    editable={!isLoading}
+                    onSubmitEditing={handleSubmit}
+                    returnKeyType="go"
+                  />
+                </View>
+                <View style={styles.inputContainer}>
+                  <Lock size={20} color="#666666" />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="סיסמה"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    editable={!isLoading}
+                    onSubmitEditing={handleSubmit}
+                    returnKeyType="go"
+                  />
+                </View>
+                <TouchableOpacity
+                  style={styles.loginButton}
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <ThemedText style={styles.loginButtonText}>
+                      התחבר
+                    </ThemedText>
+                  )}
+                </TouchableOpacity>
+              </>
             ) : (
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="קוד אימות"
-                  value={verificationCode}
-                  onChangeText={setVerificationCode}
-                  keyboardType="numeric"
-                  textAlign="right"
-                />
-              </View>
+              <>
+                {!isVerifying ? (
+                  <View style={styles.inputContainer}>
+                    <Phone size={20} color="#666666" />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="מספר טלפון"
+                      value={phoneNumber}
+                      onChangeText={handlePhoneChange}
+                      keyboardType="phone-pad"
+                      maxLength={12} // 05X-XXX-XXXX
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="קוד אימות"
+                      value={verificationCode}
+                      onChangeText={setVerificationCode}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      onSubmitEditing={handleSubmit}
+                      returnKeyType="go"
+                    />
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.loginButton}
+                  onPress={isVerifying ? handleVerifyCode : handlePhoneLogin}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.loginButtonText}>
+                    {isVerifying ? "אמת קוד" : "קבל קוד אימות"}
+                  </ThemedText>
+                </TouchableOpacity>
+
+                {isVerifying && (
+                  <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => setIsVerifying(false)}
+                  >
+                    <Ionicons name="arrow-back" size={24} color="#007AFF" />
+                    <ThemedText style={styles.backButtonText}>חזרה</ThemedText>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
+          </View>
 
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={isVerifying ? verifyPhoneCode : handlePhoneAuth}
-            >
-              <ThemedText style={styles.loginButtonText}>
-                {isVerifying ? "אמת קוד" : "שלח קוד אימות"}
+          <View style={styles.footer}>
+            <View style={styles.footerContent}>
+              <ThemedText style={styles.footerText}>
+                עדיין אין לך חשבון?
               </ThemedText>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-
-      <View style={styles.footer}>
-        <View style={styles.footerContent}>
-          <ThemedText style={styles.footerText}>עדיין אין לך חשבון?</ThemedText>
-          <TouchableOpacity onPress={handleRegister}>
-            <ThemedText style={styles.registerLink}>הירשם עכשיו</ThemedText>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
+              <TouchableOpacity onPress={handleRegister}>
+                <ThemedText style={styles.registerLink}>הירשם עכשיו</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#ffffff",
+  },
+  container: {
+    flex: 1,
     padding: 20,
+  },
+  scrollView: {
+    flexGrow: 1,
   },
   header: {
     alignItems: "center",
@@ -409,4 +439,16 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+  },
+  backButtonText: {
+    color: "#007AFF",
+    fontSize: 16,
+    marginRight: 5,
+  },
 });
+
+export default LoginScreen;

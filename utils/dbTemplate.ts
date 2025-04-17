@@ -15,9 +15,9 @@ import { FIREBASE_RULES } from "@/firebase/rules";
 
 // Add password constants
 const DEFAULT_PASSWORDS = {
-  ADMIN: "Admin123!",
-  INSTRUCTOR: "Instructor123!",
-  USER: "User123!",
+  [UserRole.Admin]: "Admin123!",
+  [UserRole.Instructor]: "Instructor123!",
+  [UserRole.User]: "User123!",
 } as const;
 
 // Database Collections Template
@@ -125,21 +125,21 @@ interface DBProfileEditRequest {
 
 // Add user permissions
 export const USER_PERMISSIONS = {
-  admin: {
+  [UserRole.Admin]: {
     canViewReports: true,
     canCreateReports: true,
     canViewStaff: true,
     canManageUsers: true,
     canManageEvents: true,
   },
-  instructor: {
+  [UserRole.Instructor]: {
     canViewReports: true,
     canCreateReports: true,
     canViewStaff: false,
     canManageUsers: false,
     canManageEvents: true,
   },
-  user: {
+  [UserRole.User]: {
     canViewReports: false,
     canCreateReports: false,
     canViewStaff: false,
@@ -195,7 +195,7 @@ export async function initializeDatabase() {
           notifications: true,
           language: "he",
         },
-        students: undefined
+        students: undefined,
       };
 
       await setDoc(doc(db, DB_COLLECTIONS.USERS, adminUser.id), adminUser);
@@ -207,7 +207,7 @@ export async function initializeDatabase() {
       {
         id: "admin",
         email: "admin@mmriem.com",
-        password: DEFAULT_PASSWORDS.ADMIN, // Will be removed after creation
+        password: DEFAULT_PASSWORDS[UserRole.Admin], // Will be removed after creation
         name: "מנהל ראשי",
         role: "admin",
         createdAt: new Date().toISOString(),
@@ -219,7 +219,7 @@ export async function initializeDatabase() {
       {
         id: "instructor1",
         email: "instructor@mmriem.com",
-        password: DEFAULT_PASSWORDS.INSTRUCTOR, // Will be removed after creation
+        password: DEFAULT_PASSWORDS[UserRole.Instructor], // Will be removed after creation
         name: "מדריך ראשי",
         role: "instructor",
         createdAt: new Date().toISOString(),
@@ -231,7 +231,7 @@ export async function initializeDatabase() {
       {
         id: "user1",
         email: "user@mmriem.com",
-        password: DEFAULT_PASSWORDS.USER, // Will be removed after creation
+        password: DEFAULT_PASSWORDS[UserRole.User], // Will be removed after creation
         name: "משתמש לדוגמה",
         role: "user",
         createdAt: new Date().toISOString(),

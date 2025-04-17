@@ -1,13 +1,17 @@
-export type UserRole = "user" | "instructor" | "admin";
+export enum UserRole {
+  User = "user",
+  Instructor = "instructor",
+  Admin = "admin",
+}
 
 export const ROLES: { [key in UserRole]: UserRole } = {
-  user: "user",
-  instructor: "instructor",
-  admin: "admin",
+  [UserRole.User]: UserRole.User,
+  [UserRole.Instructor]: UserRole.Instructor,
+  [UserRole.Admin]: UserRole.Admin,
 };
 
 export const ROLE_LABELS: { [key in UserRole]: string } = {
-  user: "משתמש",
-  instructor: "מדריך",
-  admin: "מנהל",
+  [UserRole.User]: "משתמש",
+  [UserRole.Instructor]: "מדריך",
+  [UserRole.Admin]: "מנהל",
 };

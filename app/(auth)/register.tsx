@@ -41,7 +41,7 @@ const RegisterScreen: React.FC = () => {
         id: userCredential.user.uid,
         email: email.trim(),
         name,
-        role: "user",
+        role: UserRole.User,
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
       });

@@ -316,43 +316,55 @@ export default function ReportsScreen() {
   const { user, userRole } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadReports();
-  }, []);
+  }, [user?.uid, userRole]);
 
   const loadReports = async () => {
+    if (!user?.uid || !userRole) {
+      setReports([]);
+      setLoading(false);
+      return;
+    }
+
     try {
+      setLoading(true);
+      setError(null);
+
       const reportsRef = collection(db, "reports");
       let q;
 
       if (userRole === "admin") {
         q = query(reportsRef, orderBy("createdAt", "desc"));
       } else if (userRole === "instructor") {
-        q = query(reportsRef, where("instructorId", "==", user?.uid));
+        q = query(
+          reportsRef,
+          where("instructorId", "==", user.uid),
+          orderBy("createdAt", "desc")
+        );
+      } else {
+        // If not admin or instructor, don't load any reports
+        setReports([]);
+        setLoading(false);
+        return;
       }
 
       const snapshot = await getDocs(q);
-      const reportsData = snapshot.docs.map(
-        (doc) =>
-          ({
-            id: doc.id,
-            ...doc.data(),
-          } as Report)
-      );
-
-      // Sort client-side for instructor reports
-      if (userRole === "instructor") {
-        reportsData.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-      }
+      const reportsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Report[];
 
       setReports(reportsData);
     } catch (error) {
       console.error("Error loading reports:", error);
+      setError("אירעה שגיאה בטעינת הדוחות");
       Alert.alert("שגיאה", "אירעה שגיאה בטעינת הדוחות");
+    } finally {
+      setLoading(false);
     }
   };
 
