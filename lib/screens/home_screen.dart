@@ -54,25 +54,25 @@ class _HomeScreenState extends State<HomeScreen> {
             AppRouter.pushNamed(AppRoutes.unauthorized);
           }
         },
-        items: [
+        items: const [
           BottomNavigationBarItem(
-            icon: const Icon(Icons.home),
+            icon: Icon(Icons.home),
             label: 'בית',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.people),
+            icon: Icon(Icons.people),
             label: 'צוות',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.bar_chart),
+            icon: Icon(Icons.bar_chart),
             label: 'דוחות',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.person),
+            icon: Icon(Icons.person),
             label: 'פרופיל',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.settings),
+            icon: Icon(Icons.settings),
             label: 'הגדרות',
           ),
         ],
