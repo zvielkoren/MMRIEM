@@ -27,6 +27,7 @@ jobs:
         with:
           flutter-version: "3.19.0"
           channel: "stable"
+          cache: true
 
       - name: Cache Flutter dependencies
         uses: actions/cache@v3
@@ -47,24 +48,26 @@ jobs:
       - name: Build Android
         if: matrix.platform == 'android'
         run: |
-          flutter build apk --release
+          flutter build apk --release --split-per-abi
           flutter build appbundle --release
 
       - name: Build iOS
         if: matrix.platform == 'ios'
         run: |
           flutter build ios --release --no-codesign
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -sdk iphoneos -configuration Release archive -archivePath $PWD/build/ios/iphoneos/Runner.xcarchive
 
       - name: Build Web
         if: matrix.os == 'ubuntu-latest'
-        run: flutter build web --release
+        run: |
+          flutter build web --release --web-renderer html
 
       - name: Upload Android APK
         if: matrix.platform == 'android'
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
 
       - name: Upload Android App Bundle
@@ -80,7 +83,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
-          path: build/ios/iphoneos/Runner.app
+          path: build/ios/iphoneos/Runner.xcarchive
           if-no-files-found: error
 
       - name: Upload Web Build
