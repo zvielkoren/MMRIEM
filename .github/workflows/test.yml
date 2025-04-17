@@ -1,0 +1,83 @@
+name: Test Flutter App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: android
+          - os: macos-latest
+            platform: ios
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.0'
+        channel: 'stable'
+        cache: true
+        
+    - name: Cache Flutter dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{ github.workspace }}/.pub-cache
+          ${{ github.workspace }}/build
+        key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-flutter-
+          
+    - name: Install dependencies
+      run: flutter pub get
+      
+    - name: Run Flutter tests with coverage
+      run: |
+        flutter test --coverage
+        genhtml coverage/lcov.info -o coverage/html
+        
+    - name: Run integration tests
+      if: matrix.platform == 'android'
+      run: |
+        flutter emulators --launch Pixel_9_Pro_XL
+        flutter test integration_test --coverage
+        genhtml coverage/lcov.info -o coverage/html
+        
+    - name: Run integration tests
+      if: matrix.platform == 'ios'
+      run: |
+        flutter emulators --launch apple_ios_simulator
+        flutter test integration_test --coverage
+        genhtml coverage/lcov.info -o coverage/html
+        
+    - name: Run web tests
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        flutter test --platform chrome --coverage
+        genhtml coverage/lcov.info -o coverage/html
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.platform }}
+        path: |
+          test-results/
+          coverage/html/
+        if-no-files-found: ignore
+        
+    - name: Upload coverage report
+      uses: codecov/codecov-action@v3
+      with:
+        files: coverage/lcov.info
+        fail_ci_if_error: true 
