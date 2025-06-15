@@ -39,15 +39,15 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         );
         if (mounted) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('המשתמש נוצר בהצלחה')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('המשתמש נוצר בהצלחה')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('שגיאה ביצירת המשתמש: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('שגיאה ביצירת המשתמש: $e')));
         }
       }
     }
@@ -56,9 +56,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('יצירת משתמש חדש'),
-      ),
+      appBar: AppBar(title: const Text('יצירת משתמש חדש')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -137,12 +135,13 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   labelText: 'תפקיד',
                   border: OutlineInputBorder(),
                 ),
-                items: models.UserRole.values.map((role) {
-                  return DropdownMenuItem<models.UserRole>(
-                    value: role,
-                    child: Text(_getRoleName(role)),
-                  );
-                }).toList(),
+                items:
+                    models.UserRole.values.map((role) {
+                      return DropdownMenuItem<models.UserRole>(
+                        value: role,
+                        child: Text(_getRoleName(role)),
+                      );
+                    }).toList(),
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _selectedRole = value);
@@ -173,6 +172,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         return 'קבוצה';
       case models.UserRole.user:
         return 'משתמש';
+      case models.UserRole.developer:
+        return 'מתכנת';
+      default:
+        return 'לא ידוע';
     }
   }
-} 
+}

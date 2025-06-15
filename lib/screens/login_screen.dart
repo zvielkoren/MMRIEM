@@ -69,9 +69,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!success && mounted) {
       final errorMessage = authProvider.error ?? 'שגיאה בהתחברות';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
 
     if (success && mounted) {

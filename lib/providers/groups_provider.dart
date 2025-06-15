@@ -19,9 +19,10 @@ class GroupsProvider with ChangeNotifier {
 
     try {
       final snapshot = await _firestore.collection('groups').get();
-      _groups = snapshot.docs
-          .map((doc) => Group.fromJson({...doc.data(), 'id': doc.id}))
-          .toList();
+      _groups =
+          snapshot.docs
+              .map((doc) => Group.fromJson({...doc.data(), 'id': doc.id}))
+              .toList();
     } catch (e) {
       _error = 'שגיאה בטעינת הקבוצות: $e';
     } finally {
@@ -54,7 +55,10 @@ class GroupsProvider with ChangeNotifier {
 
   Future<void> updateGroup(Group group) async {
     try {
-      await _firestore.collection('groups').doc(group.id).update(group.toJson());
+      await _firestore
+          .collection('groups')
+          .doc(group.id)
+          .update(group.toJson());
       await fetchGroups(); // Refresh the groups list
     } catch (e) {
       _error = 'שגיאה בעדכון הקבוצה: $e';
@@ -78,11 +82,11 @@ class GroupsProvider with ChangeNotifier {
     try {
       final group = _groups.firstWhere((g) => g.id == groupId);
       final updatedMemberIds = [...group.memberIds, userId];
-      
+
       await _firestore.collection('groups').doc(groupId).update({
         'memberIds': updatedMemberIds,
       });
-      
+
       await fetchGroups(); // Refresh the groups list
     } catch (e) {
       _error = 'שגיאה בהוספת חבר לקבוצה: $e';
@@ -94,12 +98,13 @@ class GroupsProvider with ChangeNotifier {
   Future<void> removeMemberFromGroup(String groupId, String userId) async {
     try {
       final group = _groups.firstWhere((g) => g.id == groupId);
-      final updatedMemberIds = group.memberIds.where((id) => id != userId).toList();
-      
+      final updatedMemberIds =
+          group.memberIds.where((id) => id != userId).toList();
+
       await _firestore.collection('groups').doc(groupId).update({
         'memberIds': updatedMemberIds,
       });
-      
+
       await fetchGroups(); // Refresh the groups list
     } catch (e) {
       _error = 'שגיאה בהסרת חבר מהקבוצה: $e';
@@ -107,4 +112,4 @@ class GroupsProvider with ChangeNotifier {
       rethrow;
     }
   }
-} 
+}

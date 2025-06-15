@@ -13,7 +13,10 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        return macos;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for macos - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.windows:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for windows - '
@@ -37,34 +40,24 @@ class DefaultFirebaseOptions {
     messagingSenderId: '544706941106',
     projectId: 'mamrimegolan',
     authDomain: 'mamrimegolan.firebaseapp.com',
-    storageBucket: 'mamrimegolan.firebasestorage.app',
+    storageBucket: 'mamrimegolan.appspot.com',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCn3WB_e2oOFmJGUDITBfLd-4_Pg9H6eQs',
-    appId: '1:544706941106:web:a4481829851371b0f7f9ab',
+    appId: '1:544706941106:android:a4481829851371b0f7f9ab',
     messagingSenderId: '544706941106',
     projectId: 'mamrimegolan',
-    storageBucket: 'mamrimegolan.firebasestorage.app',
+    storageBucket: 'mamrimegolan.appspot.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCn3WB_e2oOFmJGUDITBfLd-4_Pg9H6eQs',
-    appId: '1:544706941106:web:a4481829851371b0f7f9ab',
+    appId: '1:544706941106:ios:a4481829851371b0f7f9ab',
     messagingSenderId: '544706941106',
     projectId: 'mamrimegolan',
-    storageBucket: 'mamrimegolan.firebasestorage.app',
-    iosClientId: 'YOUR_IOS_CLIENT_ID',
-    iosBundleId: 'YOUR_IOS_BUNDLE_ID',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCn3WB_e2oOFmJGUDITBfLd-4_Pg9H6eQs',
-    appId: '1:544706941106:web:a4481829851371b0f7f9ab',
-    messagingSenderId: '544706941106',
-    projectId: 'mamrimegolan',
-    storageBucket: 'mamrimegolan.firebasestorage.app',
-    iosClientId: 'YOUR_IOS_CLIENT_ID',
-    iosBundleId: 'YOUR_IOS_BUNDLE_ID',
+    storageBucket: 'mamrimegolan.appspot.com',
+    iosClientId: '544706941106-ios.apps.googleusercontent.com',
+    iosBundleId: 'com.zvielkoren.mmriem',
   );
 }

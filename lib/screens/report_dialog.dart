@@ -154,12 +154,18 @@ class _ReportDialogState extends State<ReportDialog> {
             if (_formKey.currentState?.validate() ?? false) {
               if (widget.report == null) {
                 await context.read<ReportsProvider>().createReport(
-                  text: _textController.text,
-                  type: _selectedType,
-                  userId: _selectedUserId,
-                  instructorId: authProvider.user?.uid ?? '',
-                  status: ReportStatus.draft,
-                );
+                      title: 'דוח ${_getReportTypeText(_selectedType)}',
+                      description: 'דוח ${_getReportTypeText(_selectedType)}',
+                      type: _selectedType,
+                      userId: _selectedUserId ?? authProvider.user?.uid ?? '',
+                      startDate: DateTime.now(),
+                      endDate: DateTime.now(),
+                      content: ReportContent(
+                        text: _textController.text,
+                        attachments: null,
+                        notes: null,
+                      ),
+                    );
               } else {
                 // TODO: Implement report update
               }
@@ -173,4 +179,4 @@ class _ReportDialogState extends State<ReportDialog> {
       ],
     );
   }
-} 
+}

@@ -1,4 +1,3 @@
-
 import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +10,7 @@ class AuthProvider with ChangeNotifier {
   UserRole? _userRole;
   bool _isLoading = false;
   String? _error;
+  bool _notificationsEnabled = true;
 
   User? get currentUser => _currentUser;
   User? get user => _currentUser; // Alias for backward compatibility
@@ -18,6 +18,7 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
+  bool get notificationsEnabled => _notificationsEnabled;
 
   AuthProvider() {
     _auth.authStateChanges().listen((firebase.User? user) async {
@@ -25,31 +26,37 @@ class AuthProvider with ChangeNotifier {
         try {
           final doc = await _firestore.collection('users').doc(user.uid).get();
           if (doc.exists) {
-            final data = doc.data()!;
+            final data = doc.data() ?? {};
             data['id'] = doc.id;
             _currentUser = User.fromJson(data);
             _userRole = _currentUser?.role;
+            _notificationsEnabled = data['notificationsEnabled'] ?? true;
           } else {
-            // Create new user document
+            // Create new user document with default user role
             final newUser = User(
               id: user.uid,
-              email: user.email!,
+              email: user.email ?? '',
               displayName: user.displayName ?? '',
               phoneNumber: user.phoneNumber ?? '',
-              role: UserRole.user,
+              role: UserRole.user, // Default role for new users
               createdAt: DateTime.now(),
               lastLoginAt: DateTime.now(),
             );
-            await _firestore.collection('users').doc(user.uid).set(newUser.toJson());
+            await _firestore
+                .collection('users')
+                .doc(user.uid)
+                .set(newUser.toJson());
             _currentUser = newUser;
             _userRole = UserRole.user;
+            _notificationsEnabled = true;
           }
         } catch (e) {
-          _error = 'שגיאה בטעינת פרטי המשתמש: $e';
+          _error = 'שגיאה בטעינת פרטי המשתמש: ${e.toString()}';
         }
       } else {
         _currentUser = null;
         _userRole = null;
+        _notificationsEnabled = true;
       }
       notifyListeners();
     });
@@ -61,39 +68,70 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
+      if (email.isEmpty || password.isEmpty) {
+        _error = 'נא למלא את כל השדות';
+        return false;
+      }
+
       final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       if (userCredential.user != null) {
-        final doc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
+        final doc =
+            await _firestore
+                .collection('users')
+                .doc(userCredential.user!.uid)
+                .get();
         if (doc.exists) {
-          final data = doc.data()!;
+          final data = doc.data() ?? {};
           data['id'] = doc.id;
           _currentUser = User.fromJson(data);
           _userRole = _currentUser?.role;
         } else {
-          // Create new user document
+          // Create new user document with default user role
           final newUser = User(
             id: userCredential.user!.uid,
-            email: userCredential.user!.email!,
+            email: userCredential.user!.email ?? '',
             displayName: userCredential.user!.displayName ?? '',
             phoneNumber: userCredential.user!.phoneNumber ?? '',
-            role: UserRole.user,
+            role: UserRole.user, // Default role for new users
             createdAt: DateTime.now(),
             lastLoginAt: DateTime.now(),
           );
-          await _firestore.collection('users').doc(userCredential.user!.uid).set(newUser.toJson());
+          await _firestore
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set(newUser.toJson());
           _currentUser = newUser;
           _userRole = UserRole.user;
         }
         notifyListeners();
-        return true;
+      return true;
+      }
+      _error = 'התחברות נכשלה';
+      return false;
+    } on firebase.FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'user-not-found':
+          _error = 'משתמש לא נמצא';
+          break;
+        case 'wrong-password':
+          _error = 'סיסמה שגויה';
+          break;
+        case 'invalid-email':
+          _error = 'כתובת אימייל לא תקינה';
+          break;
+        case 'user-disabled':
+          _error = 'המשתמש מושבת';
+          break;
+        default:
+          _error = 'שגיאה בהתחברות: ${e.message ?? 'שגיאה לא ידועה'}';
       }
       return false;
     } catch (e) {
-      _error = 'שגיאה בהתחברות: $e';
+      _error = 'שגיאה בהתחברות: ${e.toString()}';
       return false;
     } finally {
       _isLoading = false;
@@ -107,13 +145,23 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
+      if (phoneNumber.isEmpty) {
+        _error = 'נא להזין מספר טלפון';
+        return false;
+      }
+
       await _auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
         verificationCompleted: (firebase.PhoneAuthCredential credential) async {
+          try {
           await _auth.signInWithCredential(credential);
+          } catch (e) {
+            _error = 'שגיאה באימות מספר הטלפון: ${e.toString()}';
+            notifyListeners();
+          }
         },
         verificationFailed: (firebase.FirebaseAuthException e) {
-          _error = 'שגיאה באימות מספר הטלפון: $e';
+          _error = 'שגיאה באימות מספר הטלפון: ${e.message ?? 'שגיאה לא ידועה'}';
           notifyListeners();
         },
         codeSent: (String verificationId, int? resendToken) {
@@ -125,7 +173,7 @@ class AuthProvider with ChangeNotifier {
       );
       return true;
     } catch (e) {
-      _error = 'שגיאה בהתחברות עם מספר טלפון: $e';
+      _error = 'שגיאה בהתחברות עם מספר טלפון: ${e.toString()}';
       return false;
     } finally {
       _isLoading = false;
@@ -136,9 +184,14 @@ class AuthProvider with ChangeNotifier {
   Future<void> signOut() async {
     try {
       await _auth.signOut();
+      _currentUser = null;
+      _userRole = null;
+      _error = null;
     } catch (e) {
-      _error = 'שגיאה בהתנתקות: $e';
+      _error = 'שגיאה בהתנתקות: ${e.toString()}';
       rethrow;
+    } finally {
+      notifyListeners();
     }
   }
 
@@ -285,6 +338,66 @@ class AuthProvider with ChangeNotifier {
       _error = null;
     } catch (e) {
       _error = 'שגיאה בעדכון המשתמש: $e';
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> requestProfileUpdate({
+    required String displayName,
+    required String phoneNumber,
+  }) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final user = _currentUser;
+      if (user == null) {
+        throw 'לא נמצא משתמש מחובר';
+      }
+
+      // Create a new document in the profile_requests collection
+      await _firestore.collection('profile_requests').add({
+        'userId': user.id,
+        'displayName': displayName,
+        'phoneNumber': phoneNumber,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _error = 'שגיאה בשליחת בקשת העדכון: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> toggleNotifications(bool enabled) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final user = _currentUser;
+      if (user == null) {
+        throw 'לא נמצא משתמש מחובר';
+      }
+
+      await _firestore.collection('users').doc(user.id).update({
+        'notificationsEnabled': enabled,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      _notificationsEnabled = enabled;
+    } catch (e) {
+      _error = 'שגיאה בעדכון הגדרות ההתראות: $e';
       rethrow;
     } finally {
       _isLoading = false;

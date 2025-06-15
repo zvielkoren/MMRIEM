@@ -1,12 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum UserRole {
-  admin,
-  team,
-  staff,
-  group,
-  user,
-}
+enum UserRole { admin, team, staff, group, user, developer }
 
 class User {
   final String id;
@@ -40,24 +34,28 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'] as String,
-      email: json['email'] as String,
-      displayName: json['displayName'] as String,
-      phoneNumber: json['phoneNumber'] as String,
+      id: json['id'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      displayName: json['displayName'] as String? ?? '',
+      phoneNumber: json['phoneNumber'] as String? ?? '',
       role: UserRole.values.firstWhere(
         (e) => e.toString() == 'UserRole.${json['role']}',
         orElse: () => UserRole.user,
       ),
       groupId: json['groupId'] as String?,
       groupName: json['groupName'] as String?,
-      createdAt: json['createdAt'] is Timestamp
-          ? (json['createdAt'] as Timestamp).toDate()
-          : DateTime.parse(json['createdAt'] as String),
-      lastLoginAt: json['lastLoginAt'] != null
-          ? (json['lastLoginAt'] is Timestamp
-              ? (json['lastLoginAt'] as Timestamp).toDate()
-              : DateTime.parse(json['lastLoginAt'] as String))
-          : null,
+      createdAt:
+          json['createdAt'] != null
+              ? (json['createdAt'] is Timestamp
+                  ? (json['createdAt'] as Timestamp).toDate()
+                  : DateTime.parse(json['createdAt'] as String))
+              : DateTime.now(),
+      lastLoginAt:
+          json['lastLoginAt'] != null
+              ? (json['lastLoginAt'] is Timestamp
+                  ? (json['lastLoginAt'] as Timestamp).toDate()
+                  : DateTime.parse(json['lastLoginAt'] as String))
+              : null,
       photoURL: json['photoURL'] as String?,
     );
   }
@@ -72,8 +70,9 @@ class User {
       'groupId': groupId,
       'groupName': groupName,
       'createdAt': Timestamp.fromDate(createdAt),
-      'lastLoginAt': lastLoginAt != null ? Timestamp.fromDate(lastLoginAt!) : null,
+      'lastLoginAt':
+          lastLoginAt != null ? Timestamp.fromDate(lastLoginAt!) : null,
       'photoURL': photoURL,
     };
   }
-} 
+}

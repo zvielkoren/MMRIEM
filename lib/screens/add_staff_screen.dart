@@ -45,9 +45,9 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('שגיאה בהוספת חבר צוות: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('שגיאה בהוספת חבר צוות: $e')));
         }
       }
     }
@@ -56,9 +56,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('הוספת חבר צוות'),
-      ),
+      appBar: AppBar(title: const Text('הוספת חבר צוות')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -137,12 +135,13 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                   labelText: 'תפקיד',
                   border: OutlineInputBorder(),
                 ),
-                items: models.UserRole.values.map((role) {
-                  return DropdownMenuItem<models.UserRole>(
-                    value: role,
-                    child: Text(_getRoleName(role)),
-                  );
-                }).toList(),
+                items:
+                    models.UserRole.values.map((role) {
+                      return DropdownMenuItem<models.UserRole>(
+                        value: role,
+                        child: Text(_getRoleName(role)),
+                      );
+                    }).toList(),
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _selectedRole = value);
@@ -173,6 +172,10 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
         return 'קבוצה';
       case models.UserRole.user:
         return 'משתמש';
+      case models.UserRole.developer:
+        return 'מתכנת';
+      default:
+        return 'לא ידוע';
     }
   }
-} 
+}

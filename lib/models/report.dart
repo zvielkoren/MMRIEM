@@ -1,17 +1,6 @@
+enum ReportType { daily, weekly, monthly, yearly, custom }
 
-enum ReportType {
-  daily,
-  weekly,
-  monthly,
-  yearly,
-  custom
-}
-
-enum ReportStatus {
-  draft,
-  submitted,
-  reviewed
-}
+enum ReportStatus { draft, submitted, reviewed }
 
 class Report {
   final String id;
@@ -38,14 +27,44 @@ class Report {
     required this.content,
   });
 
+  Report copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? description,
+    DateTime? startDate,
+    DateTime? endDate,
+    DateTime? createdAt,
+    ReportType? type,
+    ReportStatus? status,
+    ReportContent? content,
+  }) {
+    return Report(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      createdAt: createdAt ?? this.createdAt,
+      type: type ?? this.type,
+      status: status ?? this.status,
+      content: content ?? this.content,
+    );
+  }
+
   factory Report.fromJson(Map<String, dynamic> json) {
     return Report(
       id: json['id'] as String? ?? '',
       userId: json['userId'] as String?,
       title: json['title'] as String?,
       description: json['description'] as String?,
-      startDate: json['startDate'] != null ? DateTime.parse(json['startDate'] as String) : null,
-      endDate: json['endDate'] != null ? DateTime.parse(json['endDate'] as String) : null,
+      startDate: json['startDate'] != null
+          ? DateTime.parse(json['startDate'] as String)
+          : null,
+      endDate: json['endDate'] != null
+          ? DateTime.parse(json['endDate'] as String)
+          : null,
       createdAt: DateTime.parse(json['createdAt'] as String),
       type: ReportType.values.firstWhere(
         (e) => e.toString() == 'ReportType.${json['type']}',
@@ -55,7 +74,8 @@ class Report {
         (e) => e.toString() == 'ReportStatus.${json['status']}',
         orElse: () => ReportStatus.draft,
       ),
-      content: ReportContent.fromJson(json['content'] as Map<String, dynamic>? ?? {}),
+      content: ReportContent.fromJson(
+          json['content'] as Map<String, dynamic>? ?? {}),
     );
   }
 
@@ -101,4 +121,4 @@ class ReportContent {
       'notes': notes,
     };
   }
-} 
+}

@@ -15,22 +15,28 @@ class StaffProvider with ChangeNotifier {
   String? get error => _error;
 
   Future<void> fetchStaff() async {
+    if (_isLoading) return; // Prevent multiple simultaneous fetches
+
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    // Don't notify here - wait until we have the data
 
     try {
       final snapshot = await _firestore.collection('users').get();
-      _staff = snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return app.User.fromJson(data);
-      }).toList();
+      _staff =
+          snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return app.User.fromJson(data);
+          }).toList();
     } catch (e) {
       _error = 'שגיאה בטעינת הצוות: $e';
     } finally {
       _isLoading = false;
-      notifyListeners();
+      // Use a post-frame callback to notify listeners
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
     }
   }
 
@@ -64,7 +70,7 @@ class StaffProvider with ChangeNotifier {
       );
 
       await _firestore.collection('users').doc(user.id).set(user.toJson());
-      
+
       // Add user to group if specified
       if (groupId != null) {
         await _firestore.collection('groups').doc(groupId).update({
@@ -110,4 +116,4 @@ class StaffProvider with ChangeNotifier {
       rethrow;
     }
   }
-} 
+}

@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isDeveloper() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'developer';
+    }
+    
+    function isTeam() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'team';
+    }
+    
+    function isStaff() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Profile requests collection
+    match /profileRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // Reports collection
+    match /reports/{reportId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Group messages collection
+    match /group_messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isDeveloper();
+      allow update: if isDeveloper();
+      allow delete: if isDeveloper();
+    }
+
+    // Private messages collection
+    match /private_messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isDeveloper();
+      allow delete: if isDeveloper();
+    }
+
+    // Developer chat collection
+    match /chats/{userId}/messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isDeveloper();
+      allow delete: if isDeveloper();
+    }
+
+    // Developer chat logs
+    match /chats/{userId}/logs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isDeveloper();
+      allow delete: if isDeveloper();
+    }
+  }
+} 

@@ -3,26 +3,59 @@ import 'package:provider/provider.dart';
 import '../models/report.dart';
 import '../providers/reports_provider.dart';
 import '../providers/auth_provider.dart';
-import '../models/models.dart' as models;
-import 'report_dialog.dart';
+import '../models/user.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReportsByTypeScreen extends StatelessWidget {
   final ReportType type;
 
   const ReportsByTypeScreen({super.key, required this.type});
 
-  String _getTypeName(ReportType type) {
+  String _getReportTypeText(ReportType type) {
     switch (type) {
       case ReportType.daily:
-        return 'דוחות יומיים';
+        return 'יומי';
       case ReportType.weekly:
-        return 'דוחות שבועיים';
+        return 'שבועי';
       case ReportType.monthly:
-        return 'דוחות חודשיים';
+        return 'חודשי';
       case ReportType.yearly:
-        return 'דוחות שנתיים';
+        return 'שנתי';
       case ReportType.custom:
-        return 'דוחות מותאמים';
+        return 'מותאם';
+    }
+  }
+
+  bool _canManageReport(
+      UserRole? userRole, String reportUserId, String currentUserId) {
+    if (userRole == null) return false;
+
+    switch (userRole) {
+      case UserRole.admin:
+      case UserRole.developer:
+        return true;
+      case UserRole.team:
+        return true;
+      case UserRole.staff:
+        return reportUserId == currentUserId;
+      default:
+        return false;
+    }
+  }
+
+  bool _canViewReport(
+      UserRole? userRole, String reportUserId, String currentUserId) {
+    if (userRole == null) return false;
+
+    switch (userRole) {
+      case UserRole.admin:
+      case UserRole.developer:
+      case UserRole.team:
+        return true;
+      case UserRole.staff:
+        return reportUserId == currentUserId;
+      default:
+        return false;
     }
   }
 
@@ -31,39 +64,27 @@ class ReportsByTypeScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final reportsProvider = context.watch<ReportsProvider>();
     final authProvider = context.watch<AuthProvider>();
+    final currentUser = context.watch<AuthProvider>().user;
 
-    final filteredReports = reportsProvider.reports
-        .where((report) => report.type == type)
-        .toList();
+    if (currentUser == null) {
+      return const Center(child: Text('יש להתחבר כדי לצפות בדוחות'));
+    }
+
+    final canViewReports = currentUser.role == UserRole.admin ||
+        currentUser.role == UserRole.developer ||
+        currentUser.role == UserRole.team ||
+        currentUser.role == UserRole.staff;
+
+    if (!canViewReports) {
+      return const Center(child: Text('אין לך הרשאות לצפות בדוחות'));
+    }
+
+    final filteredReports =
+        reportsProvider.reports.where((report) => report.type == type).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getTypeName(type)),
-        actions: [
-          if (_isAdminOrStaff(authProvider.userRole))
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => ReportDialog(
-                    report: Report(
-                      id: '',
-                      userId: authProvider.user?.uid ?? '',
-                      title: '',
-                      description: '',
-                      startDate: DateTime.now(),
-                      endDate: DateTime.now(),
-                      type: type,
-                      createdAt: DateTime.now(),
-                      status: ReportStatus.draft,
-                      content: ReportContent(text: ''),
-                    ),
-                  ),
-                );
-              },
-            ),
-        ],
+        title: Text('דוחות ${_getReportTypeText(type)}'),
       ),
       body: reportsProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -74,7 +95,10 @@ class ReportsByTypeScreen extends StatelessWidget {
                     children: [
                       Text('שגיאה: ${reportsProvider.error}'),
                       ElevatedButton(
-                        onPressed: () => reportsProvider.fetchReports(),
+                        onPressed: () => reportsProvider.fetchReports(
+                          userRole: authProvider.userRole,
+                          userId: authProvider.user?.uid,
+                        ),
                         child: const Text('נסה שוב'),
                       ),
                     ],
@@ -83,111 +107,169 @@ class ReportsByTypeScreen extends StatelessWidget {
               : filteredReports.isEmpty
                   ? Center(
                       child: Text(
-                        'אין דוחות מסוג זה',
+                        'אין דוחות להצגה',
                         style: theme.textTheme.titleLarge,
                       ),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: filteredReports.length,
-                      itemBuilder: (context, index) {
-                        final report = filteredReports[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          child: ListTile(
-                            title: Text(report.title ?? 'ללא כותרת'),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(report.description ?? 'ללא תיאור'),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'נוצר ב: ${_formatDate(report.createdAt)}',
-                                  style: theme.textTheme.bodySmall,
+                  : StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('reports')
+                          .where('type', isEqualTo: type.name)
+                          .orderBy('createdAt', descending: true)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(
+                              child: Text('שגיאה: ${snapshot.error}'));
+                        }
+
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+
+                        final reports = snapshot.data?.docs
+                                .where((doc) => _canViewReport(
+                                      currentUser.role,
+                                      (doc.data()
+                                              as Map<String, dynamic>)['userId']
+                                          as String,
+                                      currentUser.uid,
+                                    ))
+                                .toList() ??
+                            [];
+
+                        if (reports.isEmpty) {
+                          return const Center(child: Text('אין דוחות להצגה'));
+                        }
+
+                        return ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: reports.length,
+                          itemBuilder: (context, index) {
+                            final report =
+                                reports[index].data() as Map<String, dynamic>;
+                            final reportId = reports[index].id;
+                            final canManage = _canManageReport(
+                              currentUser.role,
+                              report['userId'] as String,
+                              currentUser.uid,
+                            );
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              child: ListTile(
+                                title: Text(report['title'] ?? 'דוח ללא כותרת'),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        'נוצר על ידי: ${report['userName'] ?? 'לא ידוע'}'),
+                                    Text(
+                                      'תאריך: ${(report['createdAt'] as Timestamp).toDate().toString()}',
+                                    ),
+                                    Text(
+                                        'סטטוס: ${_getStatusText(report['status'] as String)}'),
+                                  ],
                                 ),
-                                if (report.startDate != null && report.endDate != null)
-                                  Text(
-                                    'תקופה: ${_formatDate(report.startDate!)} - ${_formatDate(report.endDate!)}',
-                                    style: theme.textTheme.bodySmall,
-                                  ),
-                              ],
-                            ),
-                            trailing: _buildReportActions(context, report, authProvider),
-                          ),
+                                trailing: canManage
+                                    ? PopupMenuButton(
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(
+                                            value: 'edit',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.edit),
+                                                SizedBox(width: 8),
+                                                Text('ערוך'),
+                                              ],
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.delete),
+                                                SizedBox(width: 8),
+                                                Text('מחק'),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                        onSelected: (value) async {
+                                          switch (value) {
+                                            case 'edit':
+                                              // TODO: Implement edit
+                                              break;
+                                            case 'delete':
+                                              final confirmed =
+                                                  await showDialog<bool>(
+                                                context: context,
+                                                builder: (context) =>
+                                                    AlertDialog(
+                                                  title:
+                                                      const Text('מחיקת דוח'),
+                                                  content: const Text(
+                                                    'האם אתה בטוח שברצונך למחוק את הדוח?',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context, false),
+                                                      child:
+                                                          const Text('ביטול'),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context, true),
+                                                      child: const Text('מחק'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                              if (confirmed == true) {
+                                                await FirebaseFirestore.instance
+                                                    .collection('reports')
+                                                    .doc(reportId)
+                                                    .delete();
+                                              }
+                                              break;
+                                          }
+                                        },
+                                      )
+                                    : null,
+                              ),
+                            );
+                          },
                         );
                       },
                     ),
+      floatingActionButton: currentUser.role == UserRole.staff ||
+              currentUser.role == UserRole.admin ||
+              currentUser.role == UserRole.developer
+          ? FloatingActionButton(
+              onPressed: () {
+                // TODO: Implement create new report
+              },
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 
-  bool _isAdminOrStaff(models.UserRole? role) {
-    final effectiveRole = role ?? models.UserRole.user;
-    return effectiveRole == models.UserRole.admin || effectiveRole == models.UserRole.staff;
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'draft':
+        return 'טיוטה';
+      case 'submitted':
+        return 'הוגש';
+      case 'reviewed':
+        return 'נבדק';
+      default:
+        return 'לא ידוע';
+    }
   }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
-  Widget _buildReportActions(
-    BuildContext context,
-    Report report,
-    AuthProvider authProvider,
-  ) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.download),
-          onPressed: () => context.read<ReportsProvider>().downloadReport(report.id),
-        ),
-        if (_isAdminOrStaff(authProvider.userRole))
-          PopupMenuButton<String>(
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Text('ערוך'),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('מחק'),
-              ),
-            ],
-            onSelected: (value) {
-              if (value == 'edit') {
-                showDialog(
-                  context: context,
-                  builder: (context) => ReportDialog(report: report),
-                );
-              } else if (value == 'delete') {
-                _showDeleteConfirmation(context, report);
-              }
-            },
-          ),
-      ],
-    );
-  }
-
-  void _showDeleteConfirmation(BuildContext context, Report report) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('מחיקת דוח'),
-        content: Text('האם אתה בטוח שברצונך למחוק את הדוח "${report.title ?? 'ללא כותרת'}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('ביטול'),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<ReportsProvider>().deleteReport(report.id);
-              Navigator.pop(context);
-            },
-            child: const Text('מחק'),
-          ),
-        ],
-      ),
-    );
-  }
-} 
+}

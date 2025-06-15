@@ -5,18 +5,19 @@ import '../routes/routes.dart';
 import '../models/user.dart';
 import '../models/report.dart';
 import '../providers/reports_provider.dart';
+import '../providers/notification_provider.dart';
 import 'report_dialog.dart';
 import 'reports_by_type_screen.dart';
 import '../providers/staff_provider.dart';
-import '../providers/notifications_provider.dart';
-import 'edit_staff_screen.dart';
 import 'groups_screen.dart';
 import 'events_screen.dart';
-import 'create_user_screen.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:io' show Platform;
+import 'profile_screen.dart';
+import 'chat_screen.dart';
+import 'notifications_screen.dart';
 
 class _ProfileTab extends StatefulWidget {
   const _ProfileTab();
@@ -58,6 +59,8 @@ class _ProfileTabState extends State<_ProfileTab> {
         return 'קבוצה';
       case UserRole.user:
         return 'משתמש';
+      case UserRole.developer:
+        return 'מתכנת';
       default:
         return 'משתמש';
     }
@@ -73,15 +76,15 @@ class _ProfileTabState extends State<_ProfileTab> {
         );
         setState(() => _isEditing = false);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('הפרופיל עודכן בהצלחה')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('הפרופיל עודכן בהצלחה')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('שגיאה בעדכון הפרופיל')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('שגיאה בעדכון הפרופיל')));
         }
       }
     }
@@ -120,9 +123,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                     Text('פרטים אישיים', style: theme.textTheme.titleLarge),
                     const SizedBox(height: 16),
                     ListTile(
-                      leading: const CircleAvatar(
-                        child: Icon(Icons.person),
-                      ),
+                      leading: const CircleAvatar(child: Icon(Icons.person)),
                       title: _isEditing
                           ? TextFormField(
                               controller: _nameController,
@@ -159,7 +160,9 @@ class _ProfileTabState extends State<_ProfileTab> {
                                 return null;
                               },
                             )
-                          : Text(authProvider.user?.phoneNumber ?? 'לא זמין'),
+                          : Text(
+                              authProvider.user?.phoneNumber ?? 'לא זמין',
+                            ),
                     ),
                     const Divider(),
                     ListTile(
@@ -225,262 +228,257 @@ class _ProfileTabState extends State<_ProfileTab> {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int? initialIndex;
+  const HomeScreen({super.key, this.initialIndex});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
+  int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex ?? 0;
+
+    // Initialize notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = context.read<AuthProvider>();
+      context.read<NotificationProvider>().fetchNotifications(
+            authProvider.userRole,
+            authProvider.user?.uid,
+          );
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final authProvider = Provider.of<AuthProvider>(context);
+    final currentUser = context.watch<AuthProvider>().user;
+    final notificationProvider = context.watch<NotificationProvider>();
+    final isDeveloper = currentUser?.role == UserRole.developer;
+    final isAdmin = currentUser?.role == UserRole.admin;
+    final isTeam = currentUser?.role == UserRole.team;
+    final isStaff = currentUser?.role == UserRole.staff;
+
+    final List<Widget> pages = [];
+    final List<BottomNavigationBarItem> items = [];
+
+    // Add Home tab for everyone
+    pages.add(const _HomeTab());
+    items.add(const BottomNavigationBarItem(
+      icon: Icon(Icons.home),
+      label: 'בית',
+    ));
+
+    // Add Staff tab for admin/team/staff
+    if (isAdmin || isTeam || isStaff) {
+      pages.add(const _StaffTab());
+      items.add(const BottomNavigationBarItem(
+        icon: Icon(Icons.people),
+        label: 'סגל',
+      ));
+    }
+
+    // Add Groups tab for admin/team
+    if (isAdmin || isTeam) {
+      pages.add(const _GroupsTab());
+      items.add(const BottomNavigationBarItem(
+        icon: Icon(Icons.group),
+        label: 'קבוצות',
+      ));
+    }
+
+    // Add Reports tab for admin/staff only
+    if (isAdmin || isStaff) {
+      pages.add(const _ReportsTab());
+      items.add(const BottomNavigationBarItem(
+        icon: Icon(Icons.assignment),
+        label: 'דוחות',
+      ));
+    }
+
+    // Add System tab for admin/team
+    if (isAdmin || isTeam) {
+      pages.add(const _SystemTab());
+      items.add(const BottomNavigationBarItem(
+        icon: Icon(Icons.settings),
+        label: 'מערכת',
+      ));
+    }
+
+    // Add Profile tab for everyone
+    pages.add(const ProfileScreen());
+    items.add(const BottomNavigationBarItem(
+      icon: Icon(Icons.person),
+      label: 'פרופיל',
+    ));
+
+    // Add Chat tab for everyone
+    pages.add(const ChatScreen());
+    items.add(BottomNavigationBarItem(
+      icon: Stack(
+        children: [
+          const Icon(Icons.chat),
+          if (notificationProvider.unreadMessagesCount > 0)
+            Positioned(
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(1),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.error,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 12,
+                  minHeight: 12,
+                ),
+                child: const Center(
+                  child: Text(
+                    '•',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      label: 'צ\'אט',
+    ));
+
+    // Ensure selected index is valid
+    if (_selectedIndex >= pages.length) {
+      _selectedIndex = 0;
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getTitle(_currentIndex)),
+        title: Text(
+          _getTitle(_selectedIndex),
+          style: theme.textTheme.headlineMedium,
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () => _showHelpDialog(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              // TODO: Navigate to notifications
-            },
-          ),
+          if (_selectedIndex == 0) ...[
+            IconButton(
+              icon: Stack(
+                children: [
+                  const Icon(Icons.notifications_outlined),
+                  if (notificationProvider.unreadMessagesCount > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.error,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          notificationProvider.unreadMessagesCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              onPressed: () {
+                Navigator.pushNamed(context, AppRoutes.notifications);
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () {
+                Navigator.pushNamed(context, AppRoutes.settingsRoute);
+              },
+            ),
+          ],
         ],
       ),
-      body: _getScreen(_currentIndex),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          if (_isAllowed(authProvider.userRole, index)) {
-            setState(() => _currentIndex = index);
+      body: pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        items: items,
+        currentIndex: _selectedIndex,
+        selectedItemColor: theme.colorScheme.primary,
+        unselectedItemColor: theme.colorScheme.onSurfaceVariant,
+        onTap: (index) {
+          if (index < pages.length) {
+            setState(() {
+              _selectedIndex = index;
+            });
           }
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'בית',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
-            label: 'צוות',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.groups_outlined),
-            selectedIcon: Icon(Icons.groups),
-            label: 'קבוצות',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.event_outlined),
-            selectedIcon: Icon(Icons.event),
-            label: 'אירועים',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'פרופיל',
-          ),
-        ],
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
 
-  Widget _getScreen(int index) {
-    switch (index) {
-      case 0:
-        return const _HomeTab();
-      case 1:
-        return const _StaffTab();
-      case 2:
-        return const GroupsScreen();
-      case 3:
-        return const EventsScreen();
-      case 4:
-        return const _ProfileTab();
-      default:
-        return const _HomeTab();
-    }
-  }
-
   String _getTitle(int index) {
-    switch (index) {
-      case 0:
-        return 'דף הבית';
-      case 1:
-        return 'צוות';
-      case 2:
-        return 'קבוצות';
-      case 3:
-        return 'אירועים';
-      case 4:
-        return 'פרופיל';
-      default:
-        return '';
-    }
+    final currentUser = context.read<AuthProvider>().user;
+
+    if (index == 0) return 'ברוכים הבאים';
+    if (index == 1 && _isAllowed(currentUser?.role, 'staff')) return 'סטף';
+    if (index == 2 && _isAllowed(currentUser?.role, 'groups')) return 'קבוצות';
+    if (index == 3 && _isAllowed(currentUser?.role, 'events')) return 'אירועים';
+    if (index == 4 && _isAllowed(currentUser?.role, 'reports')) return 'דוחות';
+    if (index == 5) return 'פרופיל';
+    if (index == 6 && _isAllowed(currentUser?.role, 'chat')) return 'צ\'אט';
+    return '';
   }
 
-  bool _isAllowed(UserRole? role, int index) {
+  bool _isAllowed(UserRole? role, String section) {
     if (role == null) return false;
-    
-    switch (index) {
-      case 0: // Home
+
+    switch (section) {
+      case 'staff':
+        return role == UserRole.admin ||
+            role == UserRole.team ||
+            role == UserRole.developer;
+      case 'groups':
+        return role == UserRole.admin ||
+            role == UserRole.team ||
+            role == UserRole.developer;
+      case 'events':
+        return role == UserRole.admin ||
+            role == UserRole.team ||
+            role == UserRole.developer;
+      case 'reports':
+        return role == UserRole.admin ||
+            role == UserRole.staff ||
+            role == UserRole.developer;
+      case 'profile':
         return true;
-      case 1: // Reports
-        return role == UserRole.admin || 
-               role == UserRole.team || 
-               role == UserRole.staff;
-      case 2: // Staff
-        return role == UserRole.admin || 
-               role == UserRole.team;
-      case 3: // Groups
-        return role == UserRole.admin || 
-               role == UserRole.team || 
-               role == UserRole.group;
-      case 4: // Events
-        return role == UserRole.admin || 
-               role == UserRole.team || 
-               role == UserRole.staff;
-      case 5: // Profile
-        return true;
+      case 'chat':
+        return role == UserRole.admin ||
+            role == UserRole.team ||
+            role == UserRole.staff ||
+            role == UserRole.developer;
       default:
         return false;
     }
   }
 
-  void _showHelpDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('עזרה'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'ברוכים הבאים למערכת ניהול MMRIEM',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              const Text('המערכת כוללת את התכונות הבאות:'),
-              const SizedBox(height: 8),
-              _buildHelpItem('דף הבית', 'מסך הבית של המערכת המציג סטטוס כללי'),
-              _buildHelpItem('דוחות', 'ניהול דוחות יומיים, שבועיים, חודשיים ושנתיים'),
-              _buildHelpItem('צוות', 'ניהול חברי הצוות והרשאות'),
-              _buildHelpItem('קבוצות', 'ניהול קבוצות וחניכים'),
-              _buildHelpItem('אירועים', 'ניהול אירועים ותוכניות'),
-              _buildHelpItem('פרופיל', 'עדכון פרטים אישיים והגדרות'),
-              const SizedBox(height: 16),
-              const Text(
-                'פרטי המתכנת:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              _buildHelpItem('שם', 'צביאל קורן'),
-              _buildHelpItem('אימייל', 'zvielkoren@gmail.com'),
-              _buildHelpItem('טלפון', '052-3000242'),
-              const SizedBox(height: 16),
-              const Text(
-                'הערה חשובה:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'המתכנת אינו יכול לראות או לגשת למידע רגיש של צוות או מנהלי מערכת. כל בקשה לעזרה תתבצע דרך ממשק המשתמש בלבד.',
-                style: TextStyle(fontStyle: FontStyle.italic),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => _sendLogsToDeveloper(context),
-                icon: const Icon(Icons.bug_report),
-                label: const Text('שלח לוגים למתכנת'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('סגור'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _sendLogsToDeveloper(BuildContext context) async {
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final user = authProvider.user;
-      
-      // Collect system information
-      final deviceInfo = DeviceInfoPlugin();
-      final packageInfo = await PackageInfo.fromPlatform();
-      final connectivity = await Connectivity().checkConnectivity();
-      
-      final logs = {
-        'timestamp': DateTime.now().toIso8601String(),
-        'user': {
-          'id': user?.id,
-          'email': user?.email,
-          'role': user?.role.toString(),
-          'displayName': user?.displayName,
-        },
-        'device': {
-          'platform': Platform.operatingSystem,
-          'version': Platform.operatingSystemVersion,
-          'deviceInfo': await deviceInfo.deviceInfo,
-        },
-        'app': {
-          'version': packageInfo.version,
-          'buildNumber': packageInfo.buildNumber,
-          'packageName': packageInfo.packageName,
-        },
-        'connectivity': connectivity.toString(),
-        'lastError': authProvider.error,
-      };
-
-      // TODO: Implement actual sending of logs
-      // For now, just show a success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('הלוגים נשלחו למתכנת בהצלחה')),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('שגיאה בשליחת הלוגים: $e')),
-        );
-      }
-    }
-  }
-
-  Widget _buildHelpItem(String title, String description) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          Text(description),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
+  bool _isAdminOrStaff(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    return authProvider.userRole == UserRole.admin ||
+        authProvider.userRole == UserRole.staff;
   }
 }
 
@@ -529,31 +527,25 @@ class _StaffTab extends StatefulWidget {
 }
 
 class _StaffTabState extends State<_StaffTab> {
-  bool _isLoading = false;
-  String? _error;
-
   @override
   void initState() {
     super.initState();
-    _loadStaff();
+    // Use post-frame callback to load staff data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadStaff();
+    });
   }
 
   Future<void> _loadStaff() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
     try {
-      await context.read<StaffProvider>().fetchStaff();
+      final staffProvider = Provider.of<StaffProvider>(context, listen: false);
+      await staffProvider.fetchStaff();
     } catch (e) {
-      setState(() {
-        _error = 'שגיאה בטעינת צוות: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('שגיאה בטעינת רשימת הסטף: $e')));
+      }
     }
   }
 
@@ -571,28 +563,8 @@ class _StaffTabState extends State<_StaffTab> {
   @override
   Widget build(BuildContext context) {
     final staff = context.watch<StaffProvider>().staff;
-    final currentUser = context.watch<User?>();
-    final isAdmin = currentUser?.email == 'admin@example.com';
-
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(_error!),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadStaff,
-              child: const Text('נסה שוב'),
-            ),
-          ],
-        ),
-      );
-    }
+    final currentUser = context.watch<AuthProvider>().user;
+    final isAdmin = currentUser?.role == UserRole.admin;
 
     return Column(
       children: [
@@ -613,9 +585,7 @@ class _StaffTabState extends State<_StaffTab> {
             itemBuilder: (context, index) {
               final member = staff[index];
               return ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.person),
-                ),
+                leading: const CircleAvatar(child: Icon(Icons.person)),
                 title: Text(member.displayName),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,20 +646,45 @@ class _ReportsTabState extends State<_ReportsTab> {
     Color color,
     VoidCallback onTap,
   ) {
+    final theme = Theme.of(context);
     return Card(
-      color: color.withOpacity(0.1),
+      color: color.withOpacity(0.08),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 48, color: color),
-              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 32,
+                  color: color,
+                  semanticLabel: title,
+                ),
+              ),
+              const SizedBox(height: 12),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -702,15 +697,15 @@ class _ReportsTabState extends State<_ReportsTab> {
   IconData _getReportIcon(ReportType type) {
     switch (type) {
       case ReportType.daily:
-        return Icons.calendar_today;
+        return Icons.calendar_today_rounded;
       case ReportType.weekly:
-        return Icons.calendar_view_week;
+        return Icons.calendar_view_week_rounded;
       case ReportType.monthly:
-        return Icons.calendar_month;
+        return Icons.calendar_month_rounded;
       case ReportType.yearly:
-        return Icons.calendar_today;
+        return Icons.calendar_today_rounded;
       case ReportType.custom:
-        return Icons.description;
+        return Icons.description_rounded;
     }
   }
 
@@ -719,13 +714,14 @@ class _ReportsTabState extends State<_ReportsTab> {
   }
 
   Color _getStatusColor(ReportStatus status) {
+    final theme = Theme.of(context);
     switch (status) {
       case ReportStatus.draft:
-        return Colors.grey;
+        return theme.colorScheme.onSurface.withOpacity(0.5);
       case ReportStatus.submitted:
-        return Colors.blue;
+        return theme.colorScheme.primary;
       case ReportStatus.reviewed:
-        return Colors.green;
+        return theme.colorScheme.tertiary ?? theme.colorScheme.secondary;
     }
   }
 
@@ -741,10 +737,7 @@ class _ReportsTabState extends State<_ReportsTab> {
   }
 
   void _showCreateReportDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const ReportDialog(),
-    );
+    showDialog(context: context, builder: (context) => const ReportDialog());
   }
 
   void _showReportDetails(BuildContext context, Report report) {
@@ -769,11 +762,11 @@ class _ReportsTabState extends State<_ReportsTab> {
               ElevatedButton(
                 onPressed: () {
                   context.read<ReportsProvider>().updateReportStatus(
-                    report.id,
-                    report.status == ReportStatus.draft
-                        ? ReportStatus.submitted
-                        : ReportStatus.draft,
-                  );
+                        report.id,
+                        report.status == ReportStatus.draft
+                            ? ReportStatus.submitted
+                            : ReportStatus.draft,
+                      );
                   Navigator.pop(context);
                 },
                 child: Text(
@@ -813,9 +806,7 @@ class _ReportsTabState extends State<_ReportsTab> {
   void _showReportsByType(BuildContext context, ReportType type) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => ReportsByTypeScreen(type: type),
-      ),
+      MaterialPageRoute(builder: (context) => ReportsByTypeScreen(type: type)),
     );
   }
 
@@ -853,9 +844,9 @@ class _ReportsTabState extends State<_ReportsTab> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('דוחות', style: theme.textTheme.headlineMedium),
-              if (_isAdminOrStaff(authProvider.userRole))
+              if (_isAdminOrStaff(context))
                 IconButton(
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add_circle_outline_rounded),
                   onPressed: () => _showCreateReportDialog(context),
                 ),
             ],
@@ -871,29 +862,29 @@ class _ReportsTabState extends State<_ReportsTab> {
               _buildReportCard(
                 context,
                 'דוח יומי',
-                Icons.calendar_today,
-                Colors.blue,
+                Icons.calendar_today_rounded,
+                theme.colorScheme.primary,
                 () => _showReportsByType(context, ReportType.daily),
               ),
               _buildReportCard(
                 context,
                 'דוח שבועי',
-                Icons.calendar_view_week,
-                Colors.green,
+                Icons.calendar_view_week_rounded,
+                theme.colorScheme.secondary,
                 () => _showReportsByType(context, ReportType.weekly),
               ),
               _buildReportCard(
                 context,
                 'דוח חודשי',
-                Icons.calendar_month,
-                Colors.orange,
+                Icons.calendar_month_rounded,
+                theme.colorScheme.tertiary ?? theme.colorScheme.secondary,
                 () => _showReportsByType(context, ReportType.monthly),
               ),
               _buildReportCard(
                 context,
                 'דוח שנתי',
-                Icons.calendar_today,
-                Colors.purple,
+                Icons.calendar_today_rounded,
+                theme.colorScheme.primaryContainer,
                 () => _showReportsByType(context, ReportType.yearly),
               ),
             ],
@@ -951,11 +942,10 @@ class _ReportsTabState extends State<_ReportsTab> {
     );
   }
 
-  bool _isAdminOrStaff(UserRole? role) {
-    if (role == null) return false;
-    return role == UserRole.admin || 
-           role == UserRole.team || 
-           role == UserRole.staff;
+  bool _isAdminOrStaff(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    return authProvider.userRole == UserRole.admin ||
+        authProvider.userRole == UserRole.staff;
   }
 }
 
@@ -964,21 +954,18 @@ class _SystemTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final notificationsProvider = Provider.of<NotificationsProvider>(context);
     final theme = Theme.of(context);
+    final notificationProvider = Provider.of<NotificationProvider>(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Text(
-            'הודעות מערכת',
-            style: theme.textTheme.headlineSmall,
-          ),
+          child: Text('הודעות מערכת', style: theme.textTheme.headlineSmall),
         ),
         Expanded(
-          child: Consumer<NotificationsProvider>(
+          child: Consumer<NotificationProvider>(
             builder: (context, provider, child) {
               if (provider.isLoading) {
                 return const Center(child: CircularProgressIndicator());
@@ -1007,8 +994,8 @@ class _SystemTab extends StatelessWidget {
                         notification.title,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: notification.isRead
-                              ? FontWeight.normal
-                              : FontWeight.bold,
+                                  ? FontWeight.normal
+                                  : FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
@@ -1027,8 +1014,9 @@ class _SystemTab extends StatelessWidget {
                             ),
                           IconButton(
                             icon: const Icon(Icons.delete),
-                            onPressed: () =>
-                                provider.deleteNotification(notification.id),
+                            onPressed: () => provider.deleteNotification(
+                                  notification.id,
+                                ),
                             tooltip: 'מחק',
                           ),
                         ],
@@ -1048,5 +1036,23 @@ class _SystemTab extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _GroupsTab extends StatelessWidget {
+  const _GroupsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Groups Tab'));
+  }
+}
+
+class _EventsTab extends StatelessWidget {
+  const _EventsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Events Tab'));
   }
 }

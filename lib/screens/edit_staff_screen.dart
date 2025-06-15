@@ -6,10 +6,7 @@ import '../models/user.dart' as models;
 class EditStaffScreen extends StatefulWidget {
   final models.User staffMember;
 
-  const EditStaffScreen({
-    super.key,
-    required this.staffMember,
-  });
+  const EditStaffScreen({super.key, required this.staffMember});
 
   @override
   State<EditStaffScreen> createState() => _EditStaffScreenState();
@@ -24,8 +21,12 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.staffMember.displayName);
-    _phoneController = TextEditingController(text: widget.staffMember.phoneNumber);
+    _nameController = TextEditingController(
+      text: widget.staffMember.displayName,
+    );
+    _phoneController = TextEditingController(
+      text: widget.staffMember.phoneNumber,
+    );
     _selectedRole = widget.staffMember.role;
   }
 
@@ -54,15 +55,15 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
         await context.read<StaffProvider>().updateStaffMember(updatedUser);
         if (mounted) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('המשתמש עודכן בהצלחה')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('המשתמש עודכן בהצלחה')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('שגיאה בעדכון המשתמש: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('שגיאה בעדכון המשתמש: $e')));
         }
       }
     }
@@ -71,9 +72,7 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('עריכת משתמש'),
-      ),
+      appBar: AppBar(title: const Text('עריכת משתמש')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -116,12 +115,13 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
                   labelText: 'תפקיד',
                   border: OutlineInputBorder(),
                 ),
-                items: models.UserRole.values.map((role) {
-                  return DropdownMenuItem<models.UserRole>(
-                    value: role,
-                    child: Text(_getRoleName(role)),
-                  );
-                }).toList(),
+                items:
+                    models.UserRole.values.map((role) {
+                      return DropdownMenuItem<models.UserRole>(
+                        value: role,
+                        child: Text(_getRoleName(role)),
+                      );
+                    }).toList(),
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _selectedRole = value);
@@ -152,6 +152,10 @@ class _EditStaffScreenState extends State<EditStaffScreen> {
         return 'קבוצה';
       case models.UserRole.user:
         return 'משתמש';
+      case models.UserRole.developer:
+        return 'מתכנת';
+      default:
+        return 'לא ידוע';
     }
   }
-} 
+}
